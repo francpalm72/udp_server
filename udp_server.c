@@ -959,8 +959,8 @@ int main(void)
 			}
 			else if(rx_buf[0]==0x0A){
 				tx_buf[0] = 0xAA;
-				tx_buf[1] = 0x01;
-				tx_buf[2] = 0x00;
+				tx_buf[1] = 0x00;
+				tx_buf[2] = 0x01;
 				tx_buf[3] = 0x00;
 				tx_buf[4] = 0x00;
 				tx_buf[5] = 0x00;
