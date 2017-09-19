@@ -263,10 +263,7 @@ int write_out(int idport, int val)
 	return out_value;
 }
 
-int write_pwm(int idport, int val)
-{
-	
-}
+
 
 int read_eth_speed()
 {
@@ -818,7 +815,7 @@ int main(void)
 				write_out(OUT_EBT_SK_CPU, ((rx_buf[3] & 			0x40)!=0));
 				write_out(OUT_SKR_PWR_CTR_CPU, ((rx_buf[3] & 	0x80)!=0));
 				
-				write_pwm(OUT_CMD_CONSENSOFUOCO_CPU, ((rx_buf[4] & 0x01)!=0));
+				write_out(OUT_CMD_CONSENSOFUOCO_CPU, ((rx_buf[4] & 0x01)!=0));
 				write_out(OUT_CMD_FMP_INT_CPU, ((rx_buf[4] & 	0x02)!=0));
 				write_out(OUT_SENS_D00_CPU, ((rx_buf[4] & 		0x04)!=0));
 				write_out(OUT_SENS_D01_CPU, ((rx_buf[4] & 		0x08)!=0));
@@ -923,9 +920,9 @@ int main(void)
 				write_out(OUT_ECSPI3_SS3, ((rx_buf[3] & 	0x10)!=0));
 				write_out(OUT_ECSPI5_SS1, ((rx_buf[3] & 	0x20)!=0));
 				write_out(OUT_ECSPI5_SS2, ((rx_buf[3] & 	0x40)!=0));
-				write_out(OUT_ECSPI5_SS3, ((rx_buf[4] & 	0x80)!=0));
+				write_out(OUT_ECSPI5_SS3, ((rx_buf[3] & 	0x80)!=0));
 							
-								
+				
 				
 				
 				tx_buf[0] = 0x99;

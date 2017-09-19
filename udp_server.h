@@ -169,17 +169,24 @@ int write_out(int idport, int val);
 	#define OUT_GPIO6_IO06_UNUSED 166 //NUOVO
 	#define OUT_GPIO2_IO28_UNUSED 60 //NUOVO
 	
+	//#define OUT_ECSPI1_SS0 105
+	
+	#define OUT_ECSPI3_SS0 120
 	#define OUT_ECSPI3_SS1 121
 	#define OUT_ECSPI3_SS2 122
 	#define OUT_ECSPI3_SS3 123
+	
+	#define OUT_ECSPI4_SS0 84
+	
+	#define OUT_ECSPI5_SS0 17
 	#define OUT_ECSPI5_SS1 19
 	#define OUT_ECSPI5_SS2 21
 	#define OUT_ECSPI5_SS3 12
 
 
-	//#define OUT_ECSPI1_SS0 105
-	#define OUT_ECSPI3_SS0 120
-	#define OUT_ECSPI4_SS0 84
-	#define OUT_ECSPI5_SS0 17
+	
+	
+	
+	
 
 #endif
