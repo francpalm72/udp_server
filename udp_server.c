@@ -738,7 +738,7 @@ int main(void)
 				tmp += read_in(IN_GO_HW_CPU)		<< 3;
 				tmp += read_in(IN_GO_NOGO_MSL_CPU) 	<< 4;
 				tmp += read_in(IN_GO_NOGO_UA_CPU) 	<< 5;
-				tmp += read_in(IN_UART3_CTS_B_CPU) 	<< 6;
+				tmp += read_in(IN_UART3_RTS_B_CPU) 	<< 6;
 				tx_buf[6] = tmp;
 
 				
@@ -835,7 +835,7 @@ int main(void)
 				
 				write_out(OUT_OK_CPU, ((rx_buf[6] & 				0x01)!=0));
 				write_out(OUT_GO_SW_CPU, ((rx_buf[6] & 				0x02)!=0));
-				write_out(OUT_UART3_RTS_B_CPU, ((rx_buf[6] & 		0x04)!=0));
+				write_out(OUT_UART3_CTS_B_CPU, ((rx_buf[6] & 		0x04)!=0));
 				write_out(OUT_IT_UC, ((rx_buf[6] & 					0x08)!=0));
 				write_out(OUT_OTG_PWR_EN, ((rx_buf[6] & 			0x10)!=0));
 				write_out(OUT_RESET_ADC_CPU, ((rx_buf[6] & 0x20)!=0));
@@ -892,7 +892,7 @@ int main(void)
 				tmp = 0;
 				tmp += read_in(OUT_OK_CPU)					<< 0;
 				tmp += read_in(OUT_GO_SW_CPU)				<< 1;
-				tmp += read_in(OUT_UART3_RTS_B_CPU)			<< 2;
+				tmp += read_in(OUT_UART3_CTS_B_CPU)			<< 2;
 				tmp += read_in(OUT_IT_UC)					<< 3;
 				tmp += read_in(OUT_OTG_PWR_EN)				<< 4;
 				tmp += read_in(OUT_RESET_ADC_CPU)			<< 5;

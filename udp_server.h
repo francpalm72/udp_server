@@ -59,8 +59,9 @@ int write_out(int idport, int val);
 	#define IN_GO_HW_CPU 143
 	#define IN_GO_NOGO_MSL_CPU 144 
 	#define IN_GO_NOGO_UA_CPU 145
-	#define IN_UART3_CTS_B_CPU 87 //ERA IN_UART3_RTS_B_CPU
-
+	
+	#define IN_UART3_RTS_B_CPU 95
+	
 	#define IN_ARM_TRACE_08 157 
 	#define IN_ARM_TRACE_09 158 
 	#define IN_ARM_TRACE_10 159 
@@ -137,7 +138,7 @@ int write_out(int idport, int val);
 	#define OUT_OK_CPU 135 
 	#define OUT_GO_SW_CPU 136 
 
-
+	#define OUT_UART3_CTS_B_CPU 87
 
 
 	
@@ -163,7 +164,7 @@ int write_out(int idport, int val);
 
 	#define OUT_OTG_PWR_EN 111 //NUOVO
 
-	#define OUT_UART3_RTS_B_CPU 95 //ERA OUT_UART3_CTS_B_CPU
+	
 	#define OUT_IT_UC 2 
 	#define OUT_RESET_ADC_CPU 55 //NUOVO
 	#define OUT_GPIO6_IO06_UNUSED 166 //NUOVO
