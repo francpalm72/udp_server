@@ -573,6 +573,16 @@ int main(void)
     unsigned char crc_buf[BUFLEN];
     int tmp;
     
+    int IN_IT_SL_1_latch;
+	int IN_IT_SL_2_latch;
+	int IN_IT_SL_3_latch;
+	int IN_IT_SL_4_latch;
+	int IN_IT_SL_5_latch;
+	int IN_IT_SL_6_latch;
+	int IN_IT_SL_7_latch;
+	int IN_IT_SL_8_latch;
+	int IN_IT_SL_10_latch;
+    
     //create a UDP socket
     if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -595,6 +605,17 @@ int main(void)
     //keep listening for data
     while(1)
     {
+		
+		if(read_in(IN_IT_SL_1) == 1) {IN_IT_SL_1_latch = 1;}
+		if(read_in(IN_IT_SL_2) == 1) {IN_IT_SL_2_latch = 1;}
+		if(read_in(IN_IT_SL_3) == 1) {IN_IT_SL_3_latch = 1;}
+		if(read_in(IN_IT_SL_4) == 1) {IN_IT_SL_4_latch = 1;}
+		if(read_in(IN_IT_SL_5) == 1) {IN_IT_SL_5_latch = 1;}
+		if(read_in(IN_IT_SL_6) == 1) {IN_IT_SL_6_latch = 1;}
+		if(read_in(IN_IT_SL_7) == 1) {IN_IT_SL_7_latch = 1;}
+		if(read_in(IN_IT_SL_8) == 1) {IN_IT_SL_8_latch = 1;}
+		if(read_in(IN_IT_SL_10) == 1) {IN_IT_SL_10_latch = 1;}
+	
         //printf("Waiting for data...");
         fflush(stdout);
          
@@ -895,18 +916,18 @@ int main(void)
 				tmp = 0;
 				tmp += read_in(IN_ARM_EVENTI)		<< 0;
 				tmp += read_in(IN_ARM_TRACE_CTL) 	<< 1;
-				tmp += read_in(IN_IT_SL_1) 	<< 2;
-				tmp += read_in(IN_IT_SL_2) 	<< 3;
-				tmp += read_in(IN_IT_SL_3) 	<< 4;
-				tmp += read_in(IN_IT_SL_4) 	<< 5;
-				tmp += read_in(IN_IT_SL_5) << 6;
-				tmp += read_in(IN_IT_SL_6) << 7;
+				tmp += IN_IT_SL_1_latch << 2;
+				tmp += IN_IT_SL_2_latch << 3;
+				tmp += IN_IT_SL_3_latch << 4;
+				tmp += IN_IT_SL_4_latch << 5;
+				tmp += IN_IT_SL_5_latch << 6;
+				tmp += IN_IT_SL_6_latch << 7;
 				tx_buf[3] = tmp;
 			
 				tmp = 0;
-				tmp += read_in(IN_IT_SL_7) << 0;
-				tmp += read_in(IN_IT_SL_8) << 1;
-				tmp += read_in(IN_IT_SL_10) << 2;
+				tmp += IN_IT_SL_7_latch << 0;
+				tmp += IN_IT_SL_8_latch << 1;
+				tmp += IN_IT_SL_10_latch << 2;
 				tmp += read_in(IN_SPARE1_ARTIX7) << 3;
 				tmp += read_in(IN_SPARE2_ARTIX7) << 4;
 				tmp += read_in(IN_GPIO4_IO06_UNUSED) << 5;
@@ -921,6 +942,16 @@ int main(void)
 			
 				tx_buf[6] = 0x00;
 				tx_len = 7;
+				
+				IN_IT_SL_1_latch = 0;
+				IN_IT_SL_2_latch = 0;
+				IN_IT_SL_3_latch = 0;
+				IN_IT_SL_4_latch = 0;
+				IN_IT_SL_5_latch = 0;
+				IN_IT_SL_6_latch = 0;
+				IN_IT_SL_7_latch = 0;
+				IN_IT_SL_8_latch = 0;
+				IN_IT_SL_10_latch = 0;
 
 			}
 			else if(rx_buf[0]==0x08){
