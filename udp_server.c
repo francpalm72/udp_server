@@ -229,6 +229,42 @@ int read_in(int idport)
 	
 	return out_value;
 }
+int read_pwm(int idport)
+{
+	char filename[256];
+	char out_str[256];
+	int ret;
+	int out_value = -1;
+	
+	sprintf(filename, "/sys/class/backlight/backlight_lcd/brightness");
+	
+	int fd = open(filename, O_RDONLY);
+	
+	if(fd < 0){
+		printf("err opening brightness file\n");
+	}else{
+		ret = read(fd, out_str, sizeof out_str);
+		if(ret <= 0){
+			printf("err reading brightness file\n");	
+		} else {				
+			close(fd);
+			sscanf(out_str, "%d", &out_value);
+		}				
+	}
+	
+	if (fd >= 0) {
+		close(fd);
+	}
+	
+	if(out_value==50){
+		out_value=0;
+	}
+	else if(out_value==127){
+		out_value=1;
+	}
+
+	return out_value;
+}
 int write_out(int idport, int val)
 {
 	char filename[256];
@@ -262,7 +298,39 @@ int write_out(int idport, int val)
 	
 	return out_value;
 }
+int write_pwm(int idport, int val)
+{
+	char filename[256];
+	int out_value = -1;
+	
+	int ret;
+	sprintf(filename, "/sys/class/backlight/backlight_lcd/brightness");
+		
+	int fd = open(filename, O_WRONLY, O_APPEND);
+	if(fd < 0){
+		printf("err opening brightness file\n");
+		out_value=0;
+	}else{
+		if(val == 0){
+			ret = write(fd, "50", 2);
+		}else{
+			ret = write(fd, "127", 3);
+		}
+		out_value=1;
+		
+		if(ret < 0){
+			printf("err writing brightness file\n");
+			out_value=0;
+		}
+		close(fd);
+	}
 
+	if (fd >= 0) {
+		close(fd);
+	}
+	
+	return out_value;
+}
 
 
 int read_eth_speed()
@@ -304,8 +372,8 @@ void pabort(const char *s)
 }
 
 
-unsigned char tmp_rx_buf[5];
-unsigned char tmp_tx_buf[5];
+unsigned char tmp_rx_buf[300];
+unsigned char tmp_tx_buf[300];
 
 
 static const char *device0 = "/dev/spidev0.0";
@@ -319,13 +387,14 @@ static uint32_t speed = 100000;
 static uint16_t delay=0;
 static uint16_t pausaus = 100;
 
-int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char reqdelayms){
+int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char reqdelayms, unsigned char lentx, unsigned char lenrx)
+{
 	int ret = 0;
 	int fd;
 	unsigned int csid;
-	unsigned char  cmd_buf[5];
-    unsigned char  data_buf[5];
-    struct         spi_ioc_transfer xfer;
+	unsigned char  cmd_buf[300];
+	unsigned char  data_buf[300];
+	struct         spi_ioc_transfer xfer;
  
 
 	if(reqchn==0){
@@ -440,38 +509,35 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 		pausaus = reqdelayms * 100;
 	}
 	
-	cmd_buf[0] = tmp_tx_buf[0];
-	cmd_buf[1] = tmp_tx_buf[1];
-	cmd_buf[2] = tmp_tx_buf[2];
-	cmd_buf[3] = tmp_tx_buf[3];
-	cmd_buf[4] = tmp_tx_buf[4];
+	for(int i=0; i<lentx; i++){
+		cmd_buf[i] = tmp_tx_buf[i];
+	}
 
 	memset(&xfer, 0, sizeof(xfer));
     xfer.tx_buf = (unsigned long)cmd_buf;
 	xfer.rx_buf = (unsigned long)data_buf;
-    xfer.len = 5; 
+    xfer.len = lentx;
 	xfer.delay_usecs = delay;
 	xfer.speed_hz = speed;
 	xfer.bits_per_word = bits;
-    xfer.cs_change = 0; 
+   	xfer.cs_change = 0; 
 
 
-    ret = ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
+    	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
 	if (ret < 1)
 		pabort("can't send spi message");
 
 	
 	usleep(pausaus);
 	
-	cmd_buf[0] = 0xFF;
-	cmd_buf[1] = 0xFF;
-	cmd_buf[2] = 0xFF;
-	cmd_buf[3] = 0xFF;
-	cmd_buf[4] = 0xFF;
+	for(int i=0; i<lenrx; i++){
+		cmd_buf[i] = 0xFF;
+		data_buf[i] = 0xFF;
+	}
 	
 	xfer.tx_buf = (unsigned long)cmd_buf;
 	xfer.rx_buf = (unsigned long)data_buf;
-    xfer.len = 5; 
+    xfer.len = lenrx; 
 	xfer.delay_usecs = delay;
 	xfer.speed_hz = speed;
 	xfer.bits_per_word = bits;
@@ -487,11 +553,9 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 		write_out(csid,1);
 	}
 	
-	tmp_rx_buf[0] = data_buf[0];
-	tmp_rx_buf[1] = data_buf[1];
-	tmp_rx_buf[2] = data_buf[2];
-	tmp_rx_buf[3] = data_buf[3];
-	tmp_rx_buf[4] = data_buf[4];
+	for(int i=0; i<lenrx; i++){
+		tmp_rx_buf[i] = data_buf[i];
+	}
 	
 	close(fd);
 
@@ -503,9 +567,10 @@ int main(void)
 {
     struct sockaddr_in si_me, si_other;
      
-    int s, i, slen = sizeof(si_other) , recv_len;
+    int s, i, slen = sizeof(si_other) , rx_len, tx_len;
     unsigned char rx_buf[BUFLEN];
     unsigned char tx_buf[BUFLEN];
+    unsigned char crc_buf[BUFLEN];
     int tmp;
     
     //create a UDP socket
@@ -534,18 +599,70 @@ int main(void)
         fflush(stdout);
          
         //try to receive some data, this is a blocking call
-        if ((recv_len = recvfrom(s, rx_buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
+        if ((rx_len = recvfrom(s, rx_buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
         {
             die("recvfrom()");
         }
-        
-		if(recv_len == 7){
+		
+		
+		if(rx_len == 5){
+			printf("rx len=%d DATA=",rx_len);
+			for(int i=0; i<rx_len; i++){
+				printf("%02X ", rx_buf[i]);
+			}
+			printf("\n");
+		
+			if(rx_buf[0]==0x0C){
+				tmp_tx_buf[0] = rx_buf[2];
+				tmp_tx_buf[1] = rx_buf[3];
+				tmp_tx_buf[2] = rx_buf[4];
+				
+				//spidev2.0
+				i = spi_send_receive(0x02, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), 3, tmp_tx_buf[2] + 2);
+				
+			
+				tx_buf[0] = 0xCC;
+				tx_buf[1] = rx_buf[1];
+
+				for(int i=0; i<(tmp_tx_buf[2] + 2); i++){
+					tx_buf[i+2] = tmp_rx_buf[i];
+				}
+				tx_len = tmp_tx_buf[2] + 4;
+				
+				printf("tx len=%d DATA=",tx_len);
+				for(int i=0; i<tx_len; i++){
+					printf("%02X ", tx_buf[i]);
+				}
+				
+				
+				crc_buf[0] = tmp_tx_buf[0];
+				crc_buf[1] = tmp_tx_buf[1];
+				crc_buf[2] = tmp_tx_buf[2];
+				
+				for(int i=0; i<tmp_tx_buf[2]; i++){
+					crc_buf[i+3] = tmp_rx_buf[i];
+				}
+				
+				unsigned short crc = crc16(crc_buf, 3+tmp_tx_buf[2]);
+				printf(" (%04X)",crc);
+				printf("\n");
+		
+			}
+			else{
+				continue;
+			}
+			if (sendto(s, tx_buf, tx_len, 0, (struct sockaddr*) &si_other, slen) == -1)
+			{
+				die("sendto()");
+			}
+		}
+		else if(rx_len == 7){
 			//printf("RX: ");
 			//for(i=0;i<7;i++){
 			//	printf("%02X ",rx_buf[i]);
 			//}
 			//printf("\n");
-			
+		
 			if(rx_buf[0]==0x00){
 				tx_buf[0] = 0x00;
 				tx_buf[1] = 0x55;
@@ -554,6 +671,7 @@ int main(void)
 				tx_buf[4] = 0xAA;
 				tx_buf[5] = 0x55;
 				tx_buf[6] = 0xAA;
+				tx_len = 7;
 			}
 			else if(rx_buf[0]==0x01){
 				tmp_tx_buf[0] = rx_buf[2];
@@ -561,11 +679,11 @@ int main(void)
 				tmp_tx_buf[2] = rx_buf[4];
 				tmp_tx_buf[3] = rx_buf[5];
 				tmp_tx_buf[4] = rx_buf[6];
-				
+			
 				//spidev0.0
-				i = spi_send_receive(0x00, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F));
-				//printf("recv_len=%d\n",i);
-				
+				i = spi_send_receive(0x00, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), 5, 5);
+				//printf("rx_len=%d\n",i);
+			
 				tx_buf[0] = 0x11;
 				tx_buf[1] = rx_buf[1];
 				tx_buf[2] = tmp_rx_buf[0];
@@ -573,6 +691,7 @@ int main(void)
 				tx_buf[4] = tmp_rx_buf[2];
 				tx_buf[5] = tmp_rx_buf[3];
 				tx_buf[6] = tmp_rx_buf[4];
+				tx_len = 7;
 			}
 			else if(rx_buf[0]==0x02){
 				tmp_tx_buf[0] = rx_buf[2];
@@ -580,11 +699,11 @@ int main(void)
 				tmp_tx_buf[2] = rx_buf[4];
 				tmp_tx_buf[3] = rx_buf[5];
 				tmp_tx_buf[4] = rx_buf[6];
-				
+			
 				//spidev2.0
-				i = spi_send_receive(0x02, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F));
-				//printf("recv_len=%d\n",i);
-				
+				i = spi_send_receive(0x02, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), 5, 5);
+				//printf("rx_len=%d\n",i);
+			
 				tx_buf[0] = 0x22;
 				tx_buf[1] = rx_buf[1];
 				tx_buf[2] = tmp_rx_buf[0];
@@ -592,6 +711,7 @@ int main(void)
 				tx_buf[4] = tmp_rx_buf[2];
 				tx_buf[5] = tmp_rx_buf[3];
 				tx_buf[6] = tmp_rx_buf[4];
+				tx_len = 7;
 			}
 			else if(rx_buf[0]==0x03){
 				tmp_tx_buf[0] = rx_buf[2];
@@ -599,11 +719,11 @@ int main(void)
 				tmp_tx_buf[2] = rx_buf[4];
 				tmp_tx_buf[3] = rx_buf[5];
 				tmp_tx_buf[4] = rx_buf[6];
-				
+			
 				//spidev3.0
-				i = spi_send_receive(0x03, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F));
-				//printf("recv_len=%d\n",i);
-				
+				i = spi_send_receive(0x03, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), 5, 5);
+				//printf("rx_len=%d\n",i);
+			
 				tx_buf[0] = 0x33;
 				tx_buf[1] = rx_buf[1];
 				tx_buf[2] = tmp_rx_buf[0];
@@ -611,6 +731,7 @@ int main(void)
 				tx_buf[4] = tmp_rx_buf[2];
 				tx_buf[5] = tmp_rx_buf[3];
 				tx_buf[6] = tmp_rx_buf[4];
+				tx_len = 7;
 			}
 			else if(rx_buf[0]==0x04){
 				tmp_tx_buf[0] = rx_buf[2];
@@ -618,11 +739,11 @@ int main(void)
 				tmp_tx_buf[2] = rx_buf[4];
 				tmp_tx_buf[3] = rx_buf[5];
 				tmp_tx_buf[4] = rx_buf[6];
-				
+			
 				//spidev4.0
-				i = spi_send_receive(0x04, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F));
-				//printf("recv_len=%d\n",i);
-				
+				i = spi_send_receive(0x04, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), 5, 5);
+				//printf("rx_len=%d\n",i);
+			
 				tx_buf[0] = 0x44;
 				tx_buf[1] = rx_buf[1];
 				tx_buf[2] = tmp_rx_buf[0];
@@ -630,63 +751,68 @@ int main(void)
 				tx_buf[4] = tmp_rx_buf[2];
 				tx_buf[5] = tmp_rx_buf[3];
 				tx_buf[6] = tmp_rx_buf[4];
+				tx_len = 7;
 			}
 			else if(rx_buf[0]==0x05){
-				
+			
 				if(rx_buf[1]==0x00){
 					i2c_read_chn(0x00);
-					
+				
 					tx_buf[0] = 0x55;
 					tx_buf[1] = 0x00;
 					tx_buf[2] = 0x00;
 					tx_buf[3] = 0x00;
 					tx_buf[4] = 0x00;
-					
+				
 					tx_buf[5] = (unsigned char)((ch0val & 0x1F00) >> 8);
 					tx_buf[6] = (unsigned char)((ch0val & 0x00FF) >> 0);
+					tx_len = 7;
 				}
 				else if(rx_buf[1]==0x01){
 					i2c_read_chn(0x01);
-					
+				
 					tx_buf[0] = 0x55;
 					tx_buf[1] = 0x01;
 					tx_buf[2] = 0x00;
 					tx_buf[3] = 0x00;
 					tx_buf[4] = 0x00;
-					
+				
 					tx_buf[5] = (unsigned char)((ch1val & 0x1F00) >> 8);
 					tx_buf[6] = (unsigned char)((ch1val & 0x00FF) >> 0);
+					tx_len = 7;
 				}
 				else if(rx_buf[1]==0x02){
 					i2c_read_chn(0x02);
-					
+				
 					tx_buf[0] = 0x55;
 					tx_buf[1] = 0x02;
 					tx_buf[2] = 0x00;
 					tx_buf[3] = 0x00;
 					tx_buf[4] = 0x00;
-					
+				
 					tx_buf[5] = (unsigned char)((ch2val & 0x1F00) >> 8);
 					tx_buf[6] = (unsigned char)((ch2val & 0x00FF) >> 0);
+					tx_len = 7;
 				}
 				else if(rx_buf[1]==0x03){
 					i2c_read_chn(0x03);
-					
+				
 					tx_buf[0] = 0x55;
 					tx_buf[1] = 0x03;
 					tx_buf[2] = 0x00;
 					tx_buf[3] = 0x00;
 					tx_buf[4] = 0x00;
-					
+				
 					tx_buf[5] = (unsigned char)((ch3val & 0x1F00) >> 8);
 					tx_buf[6] = (unsigned char)((ch3val & 0x00FF) >> 0);
+					tx_len = 7;
 				}
 			}
 			//COMANDO LETTURA LINEE INGRESSO (A)
 			else if(rx_buf[0]==0x06){
 				tx_buf[0] = 0x66;
 				tx_buf[1] = 0x00;
-				
+			
 				tmp = 0;
 				tmp += read_in(IN_SPARE_1_IN_CPU) 	<< 0;
 				tmp += read_in(IN_SPARE_2_IN_CPU) 	<< 1;
@@ -697,7 +823,7 @@ int main(void)
 				tmp += read_in(IN_LOOPBACK_SIGNAL_CPU) << 6;
 				tmp += read_in(IN_OK_SPOLETTA_CPU) 	<< 7;
 				tx_buf[2] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(IN_OK_DL_CPU)		<< 0;
 				tmp += read_in(IN_OK_PS_TH_CPU) 	<< 1;
@@ -708,7 +834,7 @@ int main(void)
 				tmp += read_in(IN_FUS_BT2_CPU)		<< 6;
 				tmp += read_in(IN_FAILSAFE_ENABLE_CPU) 	<< 7;
 				tx_buf[3] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(IN_MAINT_SEL_CPU)	<< 0;
 				tmp += read_in(IN_OK_BT_SK_PSB_CPU)	<< 1;
@@ -740,20 +866,21 @@ int main(void)
 				tmp += read_in(IN_GO_NOGO_UA_CPU) 	<< 5;
 				tmp += read_in(IN_UART3_RTS_B_CPU) 	<< 6;
 				tx_buf[6] = tmp;
+				tx_len = 7;
 
-				
+			
 				//printf("TX: ");
 				//for(i=0;i<7;i++){
 				//	printf("%02X ",tx_buf[i]);
 				//}
 				//printf("\n");
-			
+		
 			}
 			//COMANDO LETTURA LINEE INGRESSO (B)
 			else if(rx_buf[0]==0x07){
 				tx_buf[0] = 0x77;
 				tx_buf[1] = 0x00;
-				
+			
 				tmp = 0;
 				tmp += read_in(IN_ARM_TRACE_08) << 0;
 				tmp += read_in(IN_ARM_TRACE_09) << 1;
@@ -764,7 +891,7 @@ int main(void)
 				tmp += read_in(IN_ARM_TRACE_14) << 6;
 				tmp += read_in(IN_ARM_TRACE_15) << 7;
 				tx_buf[2] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(IN_ARM_EVENTI)		<< 0;
 				tmp += read_in(IN_ARM_TRACE_CTL) 	<< 1;
@@ -775,7 +902,7 @@ int main(void)
 				tmp += read_in(IN_IT_SL_5) << 6;
 				tmp += read_in(IN_IT_SL_6) << 7;
 				tx_buf[3] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(IN_IT_SL_7) << 0;
 				tmp += read_in(IN_IT_SL_8) << 1;
@@ -786,17 +913,18 @@ int main(void)
 				tmp += read_in(IN_GPIO7_IO12_UNUSED) << 6;
 				tmp += read_in(IN_T0_CONN_CPU) << 7;
 				tx_buf[4] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(IN_USB_OTG_OC) << 0;
 				tmp += read_in(IN_USB_OTG_ID) << 1;
 				tx_buf[5] = tmp;
-				
+			
 				tx_buf[6] = 0x00;
+				tx_len = 7;
 
 			}
 			else if(rx_buf[0]==0x08){
-			
+		
 				write_out(OUT_SPARE_1_OUT_CPU, ((rx_buf[2] & 	0x01)!=0));
 				write_out(OUT_SPARE_2_OUT_CPU, ((rx_buf[2] & 	0x02)!=0));
 				write_out(OUT_SPARE_3_OUT_CPU, ((rx_buf[2] & 	0x04)!=0));
@@ -805,7 +933,7 @@ int main(void)
 				write_out(OUT_ESS_CPU, ((rx_buf[2] & 			0x20)!=0));
 				write_out(OUT_EPA_CPU, ((rx_buf[2] & 			0x40)!=0));
 				write_out(OUT_EDB_CPU, ((rx_buf[2] & 			0x80)!=0));
-				
+			
 				write_out(OUT_EFB_CPU, ((rx_buf[3] & 			0x01)!=0));
 				write_out(OUT_EAB_CPU, ((rx_buf[3] & 			0x02)!=0));
 				write_out(OUT_INH_SORVOLO_CPU, ((rx_buf[3] & 	0x04)!=0));
@@ -814,8 +942,8 @@ int main(void)
 				write_out(OUT_BIT_L_CPU, ((rx_buf[3] & 			0x20)!=0));
 				write_out(OUT_EBT_SK_CPU, ((rx_buf[3] & 			0x40)!=0));
 				write_out(OUT_SKR_PWR_CTR_CPU, ((rx_buf[3] & 	0x80)!=0));
-				
-				write_out(OUT_CMD_CONSENSOFUOCO_CPU, ((rx_buf[4] & 0x01)!=0));
+			
+				write_pwm(OUT_CMD_CONSENSOFUOCO_CPU, ((rx_buf[4] & 0x01)!=0));				
 				write_out(OUT_CMD_FMP_INT_CPU, ((rx_buf[4] & 	0x02)!=0));
 				write_out(OUT_SENS_D00_CPU, ((rx_buf[4] & 		0x04)!=0));
 				write_out(OUT_SENS_D01_CPU, ((rx_buf[4] & 		0x08)!=0));
@@ -823,7 +951,7 @@ int main(void)
 				write_out(OUT_ID_01_CPU, ((rx_buf[4] & 			0x20)!=0));
 				write_out(OUT_TFUEL_RANGE_SLC, ((rx_buf[4] & 	0x40)!=0));
 				write_out(OUT_MAINT_SK_CPU, ((rx_buf[4] & 		0x80)!=0));
-				
+			
 				write_out(OUT_SEL_ANT_CPU, ((rx_buf[5] & 		0x01)!=0));
 				write_out(OUT_RESET_L_CPU, ((rx_buf[5] & 		0x02)!=0));
 				write_out(OUT_CMD_SPIRA_CPU, ((rx_buf[5] & 		0x04)!=0));
@@ -832,7 +960,7 @@ int main(void)
 				write_out(OUT_ENABLE_DL_CPU, ((rx_buf[5] & 		0x20)!=0));
 				write_out(OUT_ESA_CPU, ((rx_buf[5] & 			0x40)!=0));
 				write_out(OUT_ESF_CPU, ((rx_buf[5] & 			0x80)!=0));
-				
+			
 				write_out(OUT_OK_CPU, ((rx_buf[6] & 				0x01)!=0));
 				write_out(OUT_GO_SW_CPU, ((rx_buf[6] & 				0x02)!=0));
 				write_out(OUT_UART3_CTS_B_CPU, ((rx_buf[6] & 		0x04)!=0));
@@ -841,10 +969,10 @@ int main(void)
 				write_out(OUT_RESET_ADC_CPU, ((rx_buf[6] & 0x20)!=0));
 				write_out(OUT_GPIO6_IO06_UNUSED, ((rx_buf[6] &  	0x40)!=0));
 				write_out(OUT_GPIO2_IO28_UNUSED, ((rx_buf[6] &  	0x80)!=0));
-				
+			
 				tx_buf[0] = 0x88;
 				tx_buf[1] = 0x00;
-				
+			
 				tmp = 0;
 				tmp += read_in(OUT_SPARE_1_OUT_CPU)			<< 0;
 				tmp += read_in(OUT_SPARE_2_OUT_CPU)			<< 1;
@@ -855,7 +983,7 @@ int main(void)
 				tmp += read_in(OUT_EPA_CPU)					<< 6;
 				tmp += read_in(OUT_EDB_CPU)					<< 7;
 				tx_buf[2] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(OUT_EFB_CPU)					<< 0;
 				tmp += read_in(OUT_EAB_CPU)					<< 1;
@@ -866,9 +994,9 @@ int main(void)
 				tmp += read_in(OUT_EBT_SK_CPU)				<< 6;
 				tmp += read_in(OUT_SKR_PWR_CTR_CPU)			<< 7;
 				tx_buf[3] = tmp;
-				
+			
 				tmp = 0;
-				tmp += read_in(OUT_CMD_CONSENSOFUOCO_CPU)	<< 0;
+				tmp += read_pwm(OUT_CMD_CONSENSOFUOCO_CPU)	<< 0;
 				tmp += read_in(OUT_CMD_FMP_INT_CPU)			<< 1;
 				tmp += read_in(OUT_SENS_D00_CPU)			<< 2;
 				tmp += read_in(OUT_SENS_D01_CPU)			<< 3;
@@ -877,7 +1005,7 @@ int main(void)
 				tmp += read_in(OUT_TFUEL_RANGE_SLC)			<< 6;
 				tmp += read_in(OUT_MAINT_SK_CPU)			<< 7;
 				tx_buf[4] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(OUT_SEL_ANT_CPU)				<< 0;
 				tmp += read_in(OUT_RESET_L_CPU)				<< 1;
@@ -888,7 +1016,7 @@ int main(void)
 				tmp += read_in(OUT_ESA_CPU)					<< 6;
 				tmp += read_in(OUT_ESF_CPU)					<< 7;
 				tx_buf[5] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(OUT_OK_CPU)					<< 0;
 				tmp += read_in(OUT_GO_SW_CPU)				<< 1;
@@ -899,11 +1027,12 @@ int main(void)
 				tmp += read_in(OUT_GPIO6_IO06_UNUSED)		<< 6;
 				tmp += read_in(OUT_GPIO2_IO28_UNUSED)		<< 7;
 				tx_buf[6] = tmp;
-				
+				tx_len = 7;
 			
+		
 			}
 			else if(rx_buf[0]==0x09){
-				
+			
 				write_out(OUT_ARM_TRACE_00, ((rx_buf[2] & 	0x01)!=0));
 				write_out(OUT_ARM_TRACE_01, ((rx_buf[2] & 	0x02)!=0));
 				write_out(OUT_ARM_TRACE_02, ((rx_buf[2] & 	0x04)!=0));
@@ -912,7 +1041,7 @@ int main(void)
 				write_out(OUT_ARM_TRACE_05, ((rx_buf[2] & 	0x20)!=0));
 				write_out(OUT_ARM_TRACE_06, ((rx_buf[2] & 	0x40)!=0));
 				write_out(OUT_ARM_TRACE_07, ((rx_buf[2] & 	0x80)!=0));
-				
+			
 				write_out(OUT_ARM_EVENTO, ((rx_buf[3] & 	0x01)!=0));
 				write_out(OUT_ARM_TRACE_CLK, ((rx_buf[3] & 	0x02)!=0));
 				write_out(OUT_ECSPI3_SS1, ((rx_buf[3] & 	0x04)!=0));
@@ -921,13 +1050,13 @@ int main(void)
 				write_out(OUT_ECSPI5_SS1, ((rx_buf[3] & 	0x20)!=0));
 				write_out(OUT_ECSPI5_SS2, ((rx_buf[3] & 	0x40)!=0));
 				write_out(OUT_ECSPI5_SS3, ((rx_buf[3] & 	0x80)!=0));
-							
-				
-				
-				
+						
+			
+			
+			
 				tx_buf[0] = 0x99;
 				tx_buf[1] = 0x00;
-				
+			
 				tmp = 0;
 				tmp += read_in(OUT_ARM_TRACE_00)	<< 0;
 				tmp += read_in(OUT_ARM_TRACE_01)	<< 1;
@@ -938,7 +1067,7 @@ int main(void)
 				tmp += read_in(OUT_ARM_TRACE_06)	<< 6;
 				tmp += read_in(OUT_ARM_TRACE_07)	<< 7;
 				tx_buf[2] = tmp;
-				
+			
 				tmp = 0;
 				tmp += read_in(OUT_ARM_EVENTO)		<< 0;
 				tmp += read_in(OUT_ARM_TRACE_CLK)	<< 1;
@@ -949,10 +1078,11 @@ int main(void)
 				tmp += read_in(OUT_ECSPI5_SS2)		<< 6;
 				tmp += read_in(OUT_ECSPI5_SS3)		<< 7;
 				tx_buf[3] = tmp;
-				
+			
 				tx_buf[4] = 0x00;
 				tx_buf[5] = 0x00;
 				tx_buf[6] = 0x00;
+				tx_len = 7;
 			}
 			else if(rx_buf[0]==0x0A){
 				tx_buf[0] = 0xAA;
@@ -962,10 +1092,11 @@ int main(void)
 				tx_buf[4] = 0x00;
 				tx_buf[5] = 0x00;
 				tx_buf[6] = 0x00;
+				tx_len = 7;
 			}
 			else if(rx_buf[0]==0x0B){
 				tmp = read_eth_speed();
-				
+			
 				tx_buf[0] = 0xBB;
 				tx_buf[1] = 0x00;
 				tx_buf[2] = 0x00;
@@ -973,20 +1104,51 @@ int main(void)
 				tx_buf[4] = 0x00;
 				tx_buf[5] = (unsigned char)((tmp & 0xFF00)>>8);
 				tx_buf[6] = (unsigned char)(tmp & 0xFF);
+				tx_len = 7;
 			}
 			else{
 				continue;
 			}
-			
-			if (sendto(s, tx_buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1)
+		
+			if (sendto(s, tx_buf, tx_len, 0, (struct sockaddr*) &si_other, slen) == -1)
 			{
 				die("sendto()");
 			}
 		}
-    }
+		else{
+			printf("rx len=%d DATA=",rx_len);
+			for(int i=0; i<rx_len; i++){
+				printf("%02X ", rx_buf[i]);
+			}
+			printf("\n");
+			
+			if(rx_buf[0]==0x0D){
+				
+				for(int i=0; i<(rx_len-2); i++){
+					tmp_tx_buf[i] = rx_buf[i+2];
+				}
+				//spidev2.0
+				i = spi_send_receive(0x02, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), (rx_len-2), 1);
+				
+				printf("RX:%02X \n", tmp_rx_buf[0]);
+				
+				tx_buf[0] = 0xDD;
+				tx_buf[1] = rx_buf[1];
+				tx_buf[2] = tmp_rx_buf[0];
+				tx_len = 3;
+			}
+			else{
+				continue;
+			}
+			if (sendto(s, tx_buf, tx_len, 0, (struct sockaddr*) &si_other, slen) == -1)
+			{
+				die("sendto()");
+			}	
+		}
+	}
  
-    close(s);
-    return 0;
+	close(s);
+	return 0;
 }
 
 

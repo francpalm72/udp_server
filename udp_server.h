@@ -185,9 +185,34 @@ int write_out(int idport, int val);
 	#define OUT_ECSPI5_SS3 12
 
 
-	
-	
-	
-	
+
+
+/*
+//                                16  12  5
+// The CCITT CRC 16 polynomial is X + X + X + 1.
+// In binary, this is the bit pattern 1 0001 0000 0010 0001, and in hex it
+//  is 0x11021.
+// A 17 bit register is simulated by testing the MSB before shifting
+//  the data, which affords us the luxury of specifiy the polynomial as a
+//  16 bit value, 0x1021.
+// Due to the way in which we process the CRC, the bits of the polynomial
+//  are stored in reverse order. This makes the polynomial 0x8408.
+*/
+
+unsigned short crc16(unsigned char* data_p, unsigned char length){
+    unsigned char x;
+    unsigned short crc = 0xFFFF;
+
+    while (length--){
+        x = crc >> 8 ^ *data_p++;
+        x ^= x>>4;
+        crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
+    }
+    
+    crc ^= 0xFFFF;
+    
+    return crc;
+}
+
 
 #endif
