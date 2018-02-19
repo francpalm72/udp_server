@@ -381,12 +381,166 @@ static const char *device2 = "/dev/spidev2.0";
 static const char *device3 = "/dev/spidev3.0";
 static const char *device4 = "/dev/spidev4.0";
 
-static uint8_t mode=0;
+static uint8_t mode=3;
 static uint8_t bits = 8;
 static uint32_t speed = 100000;
 static uint16_t delay=0;
 static uint16_t pausaus = 100;
 
+
+int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char reqdelayms, unsigned char lentx, unsigned char lenrx)
+{
+	int ret = 0;
+	int fd;
+	//unsigned int csid;
+	unsigned char  cmd_buf[300];
+	unsigned char  data_buf[300];
+	struct         spi_ioc_transfer xfer;
+ 
+
+	if(reqchn==0){
+		fd = open(device0, O_RDWR);
+		//csid = OUT_ECSPI1_SS0;
+	}
+	else if(reqchn==2){
+		fd = open(device2, O_RDWR);
+		//csid = OUT_ECSPI3_SS0;
+	}
+	else if(reqchn==3){
+		fd = open(device3, O_RDWR);
+		//csid = OUT_ECSPI4_SS0;
+	}
+	else if(reqchn==4){
+		fd = open(device4, O_RDWR);
+		//csid = OUT_ECSPI5_SS0;
+	}
+		
+	if (fd < 0)
+		pabort("can't open device");
+
+	ret = ioctl(fd, SPI_IOC_WR_MODE, &mode);
+	if (ret == -1)
+		pabort("can't set spi mode");
+
+	ret = ioctl(fd, SPI_IOC_RD_MODE, &mode);
+	if (ret == -1)
+		pabort("can't get spi mode");
+
+	ret = ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &bits);
+	if (ret == -1)
+		pabort("can't set bits per word");
+
+	ret = ioctl(fd, SPI_IOC_RD_BITS_PER_WORD, &bits);
+	if (ret == -1)
+		pabort("can't get bits per word");
+		
+		
+	switch (reqspeed){
+		case 0x00:
+			speed = 100000;
+			break;
+		case 0x10:
+			speed = 200000;
+			break;
+		case 0x20:
+			speed = 400000;
+			break;
+		case 0x30:
+			speed = 600000;
+			break;
+		case 0x40:
+			speed = 800000;
+			break;
+		case 0x50:
+			speed = 1000000;
+			break;
+		case 0x60:
+			speed = 1200000;
+			break;
+		case 0x70:
+			speed = 1400000;
+			break;
+		case 0x80:
+			speed = 2000000;
+			break;
+		case 0x90:
+			speed = 2500000;
+			break;
+		case 0xA0:
+			speed = 5000000;
+			break;
+		case 0xB0:
+			speed = 7500000;
+			break;
+		case 0xC0:
+			speed = 10000000;
+			break;
+		case 0xD0:
+			speed = 20000000;
+			break;
+		case 0xE0:
+			speed = 25000000;
+			break;
+		case 0xF0:
+			speed = 30000000;
+			break;
+			
+		default:
+			speed = 100000;
+			break;
+	}
+	
+	//per la SPI1 non gestisco manualmente il CS
+	//if(reqchn!=0){
+	//	write_out(csid,0);
+	//}
+	
+	ret = ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
+	if (ret == -1)
+		pabort("can't set max speed hz");
+
+	ret = ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &speed);
+	if (ret == -1)
+		pabort("can't get max speed hz");
+
+	
+	for(int i=0; i<lentx; i++){
+		cmd_buf[i] = tmp_tx_buf[i];
+	}
+	for(int i=lentx; i<lentx+lenrx; i++){
+		cmd_buf[i] = 0xFF;
+	}	
+		
+	memset(&xfer, 0, sizeof(xfer));
+    xfer.tx_buf = (unsigned long)cmd_buf;
+	xfer.rx_buf = (unsigned long)data_buf;
+    xfer.len = lentx+lenrx;
+	xfer.delay_usecs = delay;
+	xfer.speed_hz = speed;
+	xfer.bits_per_word = bits;
+   	xfer.cs_change = 0; 
+
+
+    ret = ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
+	if (ret < 1)
+		pabort("can't send spi message");
+		
+		
+	//per la SPI1 non gestisco manualmente il CS
+	//if(reqchn!=0){
+	//	write_out(csid,1);
+	//}
+	
+	for(int i=0; i<lenrx; i++){
+		tmp_rx_buf[i] = data_buf[i+lentx];
+	}
+	
+	close(fd);
+
+	return ret;	
+}
+
+/*
 int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char reqdelayms, unsigned char lentx, unsigned char lenrx)
 {
 	int ret = 0;
@@ -506,7 +660,7 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 	//printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
 	
 	if(reqdelayms>0){
-		pausaus = reqdelayms * 100;
+		pausaus = reqdelayms * 10000;
 	}
 	
 	for(int i=0; i<lentx; i++){
@@ -523,7 +677,7 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
    	xfer.cs_change = 0; 
 
 
-    	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
+    ret = ioctl(fd, SPI_IOC_MESSAGE(1), &xfer);
 	if (ret < 1)
 		pabort("can't send spi message");
 
@@ -561,7 +715,7 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 
 	return ret;
 }
-
+*/
 
 int main(void)
 {
@@ -627,8 +781,8 @@ int main(void)
 		
 		
 		if(rx_len == 5){
-			printf("rx len=%d DATA=",rx_len);
-			for(int i=0; i<rx_len; i++){
+			printf("TX: ");
+			for(int i=2; i<rx_len; i++){
 				printf("%02X ", rx_buf[i]);
 			}
 			printf("\n");
@@ -650,23 +804,23 @@ int main(void)
 				}
 				tx_len = tmp_tx_buf[2] + 4;
 				
-				printf("tx len=%d DATA=",tx_len);
-				for(int i=0; i<tx_len; i++){
+				printf("RX: ",rx_len);
+				for(int i=2; i<tx_len; i++){
 					printf("%02X ", tx_buf[i]);
 				}
-				
-				
-				crc_buf[0] = tmp_tx_buf[0];
-				crc_buf[1] = tmp_tx_buf[1];
-				crc_buf[2] = tmp_tx_buf[2];
-				
-				for(int i=0; i<tmp_tx_buf[2]; i++){
-					crc_buf[i+3] = tmp_rx_buf[i];
-				}
-				
-				unsigned short crc = crc16(crc_buf, 3+tmp_tx_buf[2]);
-				printf(" (%04X)",crc);
 				printf("\n");
+				
+				//crc_buf[0] = tmp_tx_buf[0];
+				//crc_buf[1] = tmp_tx_buf[1];
+				//crc_buf[2] = tmp_tx_buf[2];
+				
+				//for(int i=0; i<tmp_tx_buf[2]; i++){
+				//	crc_buf[i+3] = tmp_rx_buf[i];
+				//}
+				
+				//unsigned short crc = crc16(crc_buf, 3+tmp_tx_buf[2]);
+				//printf(" (%04X)",crc);
+				//printf("\n");
 		
 			}
 			else{
@@ -1147,8 +1301,8 @@ int main(void)
 			}
 		}
 		else{
-			printf("rx len=%d DATA=",rx_len);
-			for(int i=0; i<rx_len; i++){
+			printf("TX: ");
+			for(int i=2; i<rx_len; i++){
 				printf("%02X ", rx_buf[i]);
 			}
 			printf("\n");
@@ -1158,15 +1312,20 @@ int main(void)
 				for(int i=0; i<(rx_len-2); i++){
 					tmp_tx_buf[i] = rx_buf[i+2];
 				}
+				
 				//spidev2.0
 				i = spi_send_receive(0x02, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), (rx_len-2), 1);
-				
-				printf("RX:%02X \n", tmp_rx_buf[0]);
 				
 				tx_buf[0] = 0xDD;
 				tx_buf[1] = rx_buf[1];
 				tx_buf[2] = tmp_rx_buf[0];
 				tx_len = 3;
+				
+				printf("RX: ",rx_len);
+				for(int i=2; i<tx_len; i++){
+					printf("%02X ", tx_buf[i]);
+				}
+				printf("\n");
 			}
 			else{
 				continue;
