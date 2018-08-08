@@ -77,11 +77,11 @@ int write_out(int idport, int val);
 	#define IN_IT_SL_2 7 
 	#define IN_IT_SL_3 8 
 	#define IN_IT_SL_4 9 
-	#define IN_IT_SL_5 11 //nuovo era OUTPUT
-	#define IN_IT_SL_6 10 //nuovo era OUTPUT
-	#define IN_IT_SL_7 15  //nuovo era OUTPUT
-	#define IN_IT_SL_8 14  //nuovo era OUTPUT
-	#define IN_IT_SL_10 13  //nuovo era OUTPUT
+	#define IN_IT_SL_5 11
+	#define IN_IT_SL_6 10
+	#define IN_IT_SL_7 15
+	#define IN_IT_SL_8 14
+	#define IN_IT_SL_10 13
 	
 	#define IN_SPARE1_ARTIX7 108 //nuovo era OUTPUT
 	#define IN_SPARE2_ARTIX7 165 //nuovo era OUTPUT

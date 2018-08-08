@@ -33,6 +33,8 @@
 #define BUFLEN 512  //Max length of buffer
 #define PORT 8888   //The port on which to listen for incoming data
 
+	
+	
 // I2C Linux device handle
 int g_i2cFile;
 
@@ -200,6 +202,35 @@ void die(char *s)
     perror(s);
     exit(1);
 }
+int read_gpio(int idport)
+{
+	char filename[256];
+	char out_str[256];
+	int ret;
+	int out_value = -1;
+	
+	sprintf(filename, "/dev/gpio%d_irq", idport);
+	
+	int fd = open(filename, O_RDONLY);
+	
+	if(fd < 0){
+		printf("err opening gpio file %d\n",idport);
+	}else{
+		ret = read(fd, out_str, sizeof out_str);
+		if(ret <= 0){
+			printf("err reading gpio file %d\n",idport);	
+		} else {				
+			close(fd);
+			sscanf(out_str, "%d", &out_value);
+		}				
+	}
+	
+	if (fd >= 0) {
+		close(fd);
+	}
+	
+	return out_value;
+}
 int read_in(int idport)
 {
 	char filename[256];
@@ -259,7 +290,7 @@ int read_pwm(int idport)
 	if(out_value==50){
 		out_value=0;
 	}
-	else if(out_value==127){
+	else if(out_value==130){
 		out_value=1;
 	}
 
@@ -314,7 +345,7 @@ int write_pwm(int idport, int val)
 		if(val == 0){
 			ret = write(fd, "50", 2);
 		}else{
-			ret = write(fd, "127", 3);
+			ret = write(fd, "130", 3);
 		}
 		out_value=1;
 		
@@ -381,7 +412,8 @@ static const char *device2 = "/dev/spidev2.0";
 static const char *device3 = "/dev/spidev3.0";
 static const char *device4 = "/dev/spidev4.0";
 
-static uint8_t mode=3;
+static uint8_t mode = 3;	//le SPI FPGA richiedono mode3
+static uint8_t mode_old = 0; //la SPI del uP richiede mode0
 static uint8_t bits = 8;
 static uint32_t speed = 100000;
 static uint16_t delay=0;
@@ -540,8 +572,8 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 	return ret;	
 }
 
-/*
-int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char reqdelayms, unsigned char lentx, unsigned char lenrx)
+
+int spi_send_receive_old(unsigned char reqchn, unsigned char reqspeed, unsigned char reqdelayms, unsigned char lentx, unsigned char lenrx)
 {
 	int ret = 0;
 	int fd;
@@ -571,11 +603,11 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 	if (fd < 0)
 		pabort("can't open device");
 
-	ret = ioctl(fd, SPI_IOC_WR_MODE, &mode);
+	ret = ioctl(fd, SPI_IOC_WR_MODE, &mode_old);
 	if (ret == -1)
 		pabort("can't set spi mode");
 
-	ret = ioctl(fd, SPI_IOC_RD_MODE, &mode);
+	ret = ioctl(fd, SPI_IOC_RD_MODE, &mode_old);
 	if (ret == -1)
 		pabort("can't get spi mode");
 
@@ -715,7 +747,7 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 
 	return ret;
 }
-*/
+
 
 int main(void)
 {
@@ -727,15 +759,7 @@ int main(void)
     unsigned char crc_buf[BUFLEN];
     int tmp;
     
-    int IN_IT_SL_1_latch;
-	int IN_IT_SL_2_latch;
-	int IN_IT_SL_3_latch;
-	int IN_IT_SL_4_latch;
-	int IN_IT_SL_5_latch;
-	int IN_IT_SL_6_latch;
-	int IN_IT_SL_7_latch;
-	int IN_IT_SL_8_latch;
-	int IN_IT_SL_10_latch;
+    
     
     //create a UDP socket
     if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
@@ -760,16 +784,8 @@ int main(void)
     while(1)
     {
 		
-		if(read_in(IN_IT_SL_1) == 1) {IN_IT_SL_1_latch = 1;}
-		if(read_in(IN_IT_SL_2) == 1) {IN_IT_SL_2_latch = 1;}
-		if(read_in(IN_IT_SL_3) == 1) {IN_IT_SL_3_latch = 1;}
-		if(read_in(IN_IT_SL_4) == 1) {IN_IT_SL_4_latch = 1;}
-		if(read_in(IN_IT_SL_5) == 1) {IN_IT_SL_5_latch = 1;}
-		if(read_in(IN_IT_SL_6) == 1) {IN_IT_SL_6_latch = 1;}
-		if(read_in(IN_IT_SL_7) == 1) {IN_IT_SL_7_latch = 1;}
-		if(read_in(IN_IT_SL_8) == 1) {IN_IT_SL_8_latch = 1;}
-		if(read_in(IN_IT_SL_10) == 1) {IN_IT_SL_10_latch = 1;}
-	
+		
+		
         //printf("Waiting for data...");
         fflush(stdout);
          
@@ -781,11 +797,11 @@ int main(void)
 		
 		
 		if(rx_len == 5){
-			printf("TX: ");
-			for(int i=2; i<rx_len; i++){
-				printf("%02X ", rx_buf[i]);
-			}
-			printf("\n");
+			//printf("TX: ");
+			//for(int i=2; i<rx_len; i++){
+			//	printf("%02X ", rx_buf[i]);
+			//}
+			//printf("\n");
 		
 			if(rx_buf[0]==0x0C){
 				tmp_tx_buf[0] = rx_buf[2];
@@ -804,24 +820,12 @@ int main(void)
 				}
 				tx_len = tmp_tx_buf[2] + 4;
 				
-				printf("RX: ",rx_len);
-				for(int i=2; i<tx_len; i++){
-					printf("%02X ", tx_buf[i]);
-				}
-				printf("\n");
-				
-				//crc_buf[0] = tmp_tx_buf[0];
-				//crc_buf[1] = tmp_tx_buf[1];
-				//crc_buf[2] = tmp_tx_buf[2];
-				
-				//for(int i=0; i<tmp_tx_buf[2]; i++){
-				//	crc_buf[i+3] = tmp_rx_buf[i];
+				//printf("RX: ",rx_len);
+				//for(int i=2; i<tx_len; i++){
+				//	printf("%02X ", tx_buf[i]);
 				//}
-				
-				//unsigned short crc = crc16(crc_buf, 3+tmp_tx_buf[2]);
-				//printf(" (%04X)",crc);
 				//printf("\n");
-		
+				
 			}
 			else{
 				continue;
@@ -856,7 +860,7 @@ int main(void)
 				tmp_tx_buf[4] = rx_buf[6];
 			
 				//spidev0.0
-				i = spi_send_receive(0x00, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), 5, 5);
+				i = spi_send_receive_old(0x00, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), 5, 5);
 				//printf("rx_len=%d\n",i);
 			
 				tx_buf[0] = 0x11;
@@ -1070,18 +1074,18 @@ int main(void)
 				tmp = 0;
 				tmp += read_in(IN_ARM_EVENTI)		<< 0;
 				tmp += read_in(IN_ARM_TRACE_CTL) 	<< 1;
-				tmp += IN_IT_SL_1_latch << 2;
-				tmp += IN_IT_SL_2_latch << 3;
-				tmp += IN_IT_SL_3_latch << 4;
-				tmp += IN_IT_SL_4_latch << 5;
-				tmp += IN_IT_SL_5_latch << 6;
-				tmp += IN_IT_SL_6_latch << 7;
+				tmp += read_gpio(IN_IT_SL_1) << 2;
+				tmp += read_gpio(IN_IT_SL_2) << 3;
+				tmp += read_gpio(IN_IT_SL_3) << 4;
+				tmp += read_gpio(IN_IT_SL_4) << 5;
+				tmp += read_gpio(IN_IT_SL_5) << 6;
+				tmp += read_gpio(IN_IT_SL_6) << 7;
 				tx_buf[3] = tmp;
 			
 				tmp = 0;
-				tmp += IN_IT_SL_7_latch << 0;
-				tmp += IN_IT_SL_8_latch << 1;
-				tmp += IN_IT_SL_10_latch << 2;
+				tmp += read_gpio(IN_IT_SL_7) << 0;
+				tmp += read_gpio(IN_IT_SL_8) << 1;
+				tmp += read_gpio(IN_IT_SL_10) << 2;
 				tmp += read_in(IN_SPARE1_ARTIX7) << 3;
 				tmp += read_in(IN_SPARE2_ARTIX7) << 4;
 				tmp += read_in(IN_GPIO4_IO06_UNUSED) << 5;
@@ -1097,16 +1101,6 @@ int main(void)
 				tx_buf[6] = 0x00;
 				tx_len = 7;
 				
-				IN_IT_SL_1_latch = 0;
-				IN_IT_SL_2_latch = 0;
-				IN_IT_SL_3_latch = 0;
-				IN_IT_SL_4_latch = 0;
-				IN_IT_SL_5_latch = 0;
-				IN_IT_SL_6_latch = 0;
-				IN_IT_SL_7_latch = 0;
-				IN_IT_SL_8_latch = 0;
-				IN_IT_SL_10_latch = 0;
-
 			}
 			else if(rx_buf[0]==0x08){
 		
@@ -1301,11 +1295,11 @@ int main(void)
 			}
 		}
 		else{
-			printf("TX: ");
-			for(int i=2; i<rx_len; i++){
-				printf("%02X ", rx_buf[i]);
-			}
-			printf("\n");
+			//printf("TX: ");
+			//for(int i=2; i<rx_len; i++){
+			//	printf("%02X ", rx_buf[i]);
+			//}
+			//printf("\n");
 			
 			if(rx_buf[0]==0x0D){
 				
@@ -1316,16 +1310,20 @@ int main(void)
 				//spidev2.0
 				i = spi_send_receive(0x02, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F), (rx_len-2), 1);
 				
+				
+				
 				tx_buf[0] = 0xDD;
 				tx_buf[1] = rx_buf[1];
 				tx_buf[2] = tmp_rx_buf[0];
 				tx_len = 3;
 				
-				printf("RX: ",rx_len);
-				for(int i=2; i<tx_len; i++){
-					printf("%02X ", tx_buf[i]);
-				}
-				printf("\n");
+				//printf("RX: ",rx_len);
+				//for(int i=2; i<tx_len; i++){
+				//	printf("%02X ", tx_buf[i]);
+				//}
+				//printf("\n");
+				
+				
 			}
 			else{
 				continue;
