@@ -1,6 +1,9 @@
-/*
-    Simple udp server
-*/
+//=====================================================
+//					SIMPLE UDP SERVER
+//
+//	VERSIONE 00 PER SCHEDA DD2 (non collaudo cestello)
+//
+//=====================================================
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -22,13 +25,7 @@
 #include <linux/spi/spidev.h>
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
-
-
-
-
-
 #include "udp_server.h"
-
 
 #define BUFLEN 512  //Max length of buffer
 #define PORT 8888   //The port on which to listen for incoming data
@@ -327,22 +324,18 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
     unsigned char  data_buf[5];
     struct         spi_ioc_transfer xfer;
  
-
-	if(reqchn==0){
-		fd = open(device0, O_RDWR);
-		//csid = OUT_ECSPI1_SS0;
-	}
-	else if(reqchn==2){
+	//per la SPI3 device2 gestisco manualmente il CS
+	if(reqchn==2){
 		fd = open(device2, O_RDWR);
 		csid = OUT_ECSPI3_SS0;
 	}
-	else if(reqchn==3){
-		fd = open(device3, O_RDWR);
-		csid = OUT_ECSPI4_SS0;
-	}
+	//per la SPI5 device4 non gestisco manualmente il CS
 	else if(reqchn==4){
 		fd = open(device4, O_RDWR);
-		csid = OUT_ECSPI5_SS0;
+		//csid = OUT_ECSPI5_SS0;
+	}
+	else{
+		pabort("Wrong SPI channel");
 	}
 		
 	if (fd < 0)
@@ -419,9 +412,13 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 			break;
 	}
 	
-	//per la SPI1 non gestisco manualmente il CS
-	if(reqchn!=0){
+	//per la SPI3 device2 gestisco manualmente il CS
+	if(reqchn==2){
 		write_out(csid,0);
+	}
+	//per la SPI5 device4 non gestisco manualmente il CS
+	else if(reqchn==4){
+		//write_out(csid,0);
 	}
 	
 	ret = ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
@@ -482,9 +479,12 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 	if (ret < 1)
 		pabort("can't send spi message");
 	
-	//per la SPI1 non gestisco manualmente il CS
-	if(reqchn!=0){
+	//per la SPI5 device4 non gestisco manualmente il CS
+	if(reqchn==2){
 		write_out(csid,1);
+	}
+	else if(reqchn==4){
+		//write_out(csid,1);
 	}
 	
 	tmp_rx_buf[0] = data_buf[0];
@@ -686,62 +686,63 @@ int main(void)
 			else if(rx_buf[0]==0x06){
 				tx_buf[0] = 0x66;
 				tx_buf[1] = 0x00;
-				
+
 				tmp = 0;
 				tmp += read_in(IN_SPARE_1_IN_CPU) 	<< 0;
 				tmp += read_in(IN_SPARE_2_IN_CPU) 	<< 1;
 				tmp += read_in(IN_SPARE_3_IN_CPU) 	<< 2;
-				tmp += read_in(IN_OK_TH_CPU) 		<< 3;
-				tmp += read_in(IN_CK_PLUG_0_CPU) 	<< 4;
-				tmp += read_in(IN_CK_PLUG_1_CPU) 	<< 5;
-				tmp += read_in(IN_LOOPBACK_SIGNAL_CPU) << 6;
-				tmp += read_in(IN_OK_SPOLETTA_CPU) 	<< 7;
+				tmp += read_in(IN_CK_PLUG_0_CPU) 	<< 3;
+				tmp += read_in(IN_UART3_CTS_B_CPU) 	<< 4;
+				tmp += read_in(IN_ARM_TRACE_CTL) 	<< 5;
+				tmp += read_in(IN_ARM_TRACE08) 		<< 6;
+				tmp += read_in(IN_ARM_TRACE09) 		<< 7;
 				tx_buf[2] = tmp;
 				
 				tmp = 0;
-				tmp += read_in(IN_OK_DL_CPU)		<< 0;
-				tmp += read_in(IN_OK_PS_TH_CPU) 	<< 1;
-				tmp += read_in(IN_OK_GPS_CPU)		<< 2;
-				tmp += read_in(IN_STATUS_ANT_CPU) 	<< 3;
-				tmp += read_in(IN_OK_PS_SWRF_CPU) 	<< 4;
-				tmp += read_in(IN_FUS_BT1_CPU)		<< 5;
-				tmp += read_in(IN_FUS_BT2_CPU)		<< 6;
-				tmp += read_in(IN_FAILSAFE_ENABLE_CPU) 	<< 7;
+				tmp += read_in(IN_ARM_TRACE10) 		<< 0;
+				tmp += read_in(IN_ARM_TRACE11) 		<< 1;
+				tmp += read_in(IN_ARM_TRACE12) 		<< 2;
+				tmp += read_in(IN_ARM_TRACE13) 		<< 3;
+				tmp += read_in(IN_ARM_TRACE14) 		<< 4;
+				tmp += read_in(IN_ARM_TRACE15) 		<< 5;
+				tmp += read_in(IN_ARM_EVENTI) 		<< 6;
+				tmp += read_in(IN_CK_PRES_BT2_CPU) 	<< 7;
 				tx_buf[3] = tmp;
-				
+
 				tmp = 0;
-				tmp += read_in(IN_MAINT_SEL_CPU)	<< 0;
-				tmp += read_in(IN_OK_BT_SK_PSB_CPU)	<< 1;
-				tmp += read_in(IN_OK_PS_WCU_CPU)	<< 2;
-				tmp += read_in(IN_FUS_SK_CPU)		<< 3;
-				tmp += read_in(IN_PB_SX_CPU)		<< 4;
-				tmp += read_in(IN_TELLBACKBT1_CPU)	<< 5;
-				tmp += read_in(IN_CTR_TELLBACKBT2_CPU) 	<< 6;
-				tmp += read_in(IN_CK_BT2_CPU)		<< 7;
+				tmp += read_in(IN_OK_GPS_CPU) 			<< 0;
+				tmp += read_in(IN_OK_SPOLETTA_CPU) 		<< 1;
+				tmp += read_in(IN_OK_DL_CPU) 			<< 2;
+				tmp += read_in(IN_OK_PS_TH_CPU) 		<< 3;
+				tmp += read_in(IN_STATUS_ANT_CPU) 		<< 4;
+				tmp += read_in(IN_OK_PS_SWRF_CPU)	 	<< 5;
+				tmp += read_in(IN_LOOPBACK_SIGNAL_CPU) 	<< 6;
+				tmp += read_in(IN_TB_BT_SK_CPU) 		<< 7;
 				tx_buf[4] = tmp;
 
 				tmp = 0;
-				tmp += read_in(IN_TB2_CPU)			<< 0;
-				tmp += read_in(IN_TELLBACKBT2_CPU)	<< 1;
-				tmp += read_in(IN_OK_TIMER_CPU)		<< 2;
-				tmp += read_in(IN_TERMINATE_CMD_1_CPU) 	<< 3;
-				tmp += read_in(IN_TERMINATE_CMD_2_CPU) 	<< 4;
-				tmp += read_in(IN_GO_SC_CPU)		<< 5;
-				tmp += read_in(IN_CK_PRES_BT2_CPU)	<< 6;
-				tmp += read_in(IN_T0_MSL_CPU)	<< 7;
+				tmp += read_in(IN_OK_PS_WCU_CPU) 	<< 0;
+				tmp += read_in(IN_GO_HW_CPU) 		<< 1;
+				tmp += read_in(IN_GO_NOGO_MSL_CPU) 	<< 2;
+				tmp += read_in(IN_GO_NOGO_UA_CPU) 	<< 3;
+				tmp += read_in(IN_IT_SL_1) 			<< 4;
+				tmp += read_in(IN_IT_SL_2) 			<< 5;
+				tmp += read_in(IN_IT_SL_3) 			<< 6;
+				tmp += read_in(IN_IT_SL_4) 			<< 7;
 				tx_buf[5] = tmp;
 
 				tmp = 0;
-				tmp += read_in(IN_STATO_D1_CPU)		<< 0;
-				tmp += read_in(IN_STATO_D2_CPU)		<< 1;
-				tmp += read_in(IN_PB_DX_CPU)		<< 2;
-				tmp += read_in(IN_GO_HW_CPU)		<< 3;
-				tmp += read_in(IN_GO_NOGO_MSL_CPU) 	<< 4;
-				tmp += read_in(IN_GO_NOGO_UA_CPU) 	<< 5;
-				tmp += read_in(IN_UART3_RTS_B_CPU) 	<< 6;
+				tmp += read_in(IN_CK_PLUG_1_CPU) 	<< 0;
+				tmp += read_in(IN_IT_SL_5) 			<< 1;
+				tmp += read_in(IN_IT_SL_6) 			<< 2;
+				tmp += read_in(IN_IT_SL_7) 			<< 3;
+				tmp += read_in(IN_IT_SL_8) 			<< 4;
+				tmp += read_in(IN_IT_SL_10) 		<< 5;
+				tmp += read_in(IN_FAILSAFE_ENABLE_CPU) 	<< 6;
+				tmp += read_in(IN_CK_BT2_CPU) 		<< 7;
 				tx_buf[6] = tmp;
 
-				
+
 				//printf("TX: ");
 				//for(i=0;i<7;i++){
 				//	printf("%02X ",tx_buf[i]);
@@ -753,203 +754,175 @@ int main(void)
 			else if(rx_buf[0]==0x07){
 				tx_buf[0] = 0x77;
 				tx_buf[1] = 0x00;
-				
+
 				tmp = 0;
-				tmp += read_in(IN_ARM_TRACE_08) << 0;
-				tmp += read_in(IN_ARM_TRACE_09) << 1;
-				tmp += read_in(IN_ARM_TRACE_10) << 2;
-				tmp += read_in(IN_ARM_TRACE_11) << 3;
-				tmp += read_in(IN_ARM_TRACE_12) << 4;
-				tmp += read_in(IN_ARM_TRACE_13) << 5;
-				tmp += read_in(IN_ARM_TRACE_14) << 6;
-				tmp += read_in(IN_ARM_TRACE_15) << 7;
+				tmp += read_in(IN_TB2_CPU) 			<< 0;
+				tmp += read_in(IN_OK_TIMER_CPU) 	<< 1;
+				tmp += read_in(IN_TELLBACKBT1_CPU) 	<< 2;
+				tmp += read_in(IN_FUS_BT1_CPU) 		<< 3;
+				tmp += read_in(IN_FUS_BT2_CPU) 		<< 4;
+				tmp += read_in(IN_PB_SX_CPU) 		<< 5;
+				tmp += read_in(IN_PB_DX_CPU) 		<< 6;
+				tmp += read_in(IN_GO_SC_CPU) 		<< 7;
 				tx_buf[2] = tmp;
-				
+
 				tmp = 0;
-				tmp += read_in(IN_ARM_EVENTI)		<< 0;
-				tmp += read_in(IN_ARM_TRACE_CTL) 	<< 1;
-				tmp += read_in(IN_IT_SL_1) 	<< 2;
-				tmp += read_in(IN_IT_SL_2) 	<< 3;
-				tmp += read_in(IN_IT_SL_3) 	<< 4;
-				tmp += read_in(IN_IT_SL_4) 	<< 5;
-				tmp += read_in(IN_IT_SL_5) << 6;
-				tmp += read_in(IN_IT_SL_6) << 7;
+				tmp += read_in(IN_FUS_SK_CPU) 		<< 0;
+				tmp += read_in(IN_IT_TIMER) 		<< 1;
+				tmp += read_in(IN_T0_MSL_CPU) 		<< 2;
+				tmp += read_in(IN_USB_OTG_OC) 		<< 3;
+				tmp += read_in(IN_MAINT_SEL_CPU) 	<< 4;
+				tmp += read_in(IN_USB_OTG_ID) 		<< 5;
+				tmp += read_in(IN_IT_UC) 			<< 6;
+				tmp += read_in(IN_OK_TH_CPU) 		<< 7;
 				tx_buf[3] = tmp;
-				
+
 				tmp = 0;
-				tmp += read_in(IN_IT_SL_7) << 0;
-				tmp += read_in(IN_IT_SL_8) << 1;
-				tmp += read_in(IN_IT_SL_10) << 2;
-				tmp += read_in(IN_SPARE1_ARTIX7) << 3;
-				tmp += read_in(IN_SPARE2_ARTIX7) << 4;
-				tmp += read_in(IN_GPIO4_IO06_UNUSED) << 5;
-				tmp += read_in(IN_GPIO7_IO12_UNUSED) << 6;
-				tmp += read_in(IN_T0_CONN_CPU) << 7;
+				tmp += read_in(IN_CTR_TELLBACKBT2_CPU) 	<< 0;
+				tmp += read_in(IN_STATO_D2_CPU) 		<< 1;
+				tmp += read_in(IN_TERMINATE_CMD_1_CPU) 	<< 2;
+				tmp += read_in(IN_TERMINATE_CMD_2_CPU) 	<< 3;
+				tmp += read_in(IN_STATO_D1_CPU) 		<< 4;
+				tmp += read_in(IN_T0_CONN_CPU) 			<< 5;
 				tx_buf[4] = tmp;
 				
-				tmp = 0;
-				tmp += read_in(IN_USB_OTG_OC) << 0;
-				tmp += read_in(IN_USB_OTG_ID) << 1;
-				tx_buf[5] = tmp;
-				
+				tx_buf[5] = 0x00;				
 				tx_buf[6] = 0x00;
 
 			}
 			else if(rx_buf[0]==0x08){
 			
-				write_out(OUT_SPARE_1_OUT_CPU, ((rx_buf[2] & 	0x01)!=0));
-				write_out(OUT_SPARE_2_OUT_CPU, ((rx_buf[2] & 	0x02)!=0));
-				write_out(OUT_SPARE_3_OUT_CPU, ((rx_buf[2] & 	0x04)!=0));
-				write_out(OUT_EASAU_CPU, ((rx_buf[2] & 			0x08)!=0));
-				write_out(OUT_EEO_CPU, ((rx_buf[2] & 			0x10)!=0));
-				write_out(OUT_ESS_CPU, ((rx_buf[2] & 			0x20)!=0));
-				write_out(OUT_EPA_CPU, ((rx_buf[2] & 			0x40)!=0));
-				write_out(OUT_EDB_CPU, ((rx_buf[2] & 			0x80)!=0));
-				
-				write_out(OUT_EFB_CPU, ((rx_buf[3] & 			0x01)!=0));
-				write_out(OUT_EAB_CPU, ((rx_buf[3] & 			0x02)!=0));
-				write_out(OUT_INH_SORVOLO_CPU, ((rx_buf[3] & 	0x04)!=0));
-				write_out(OUT_EBT_CPU, ((rx_buf[3] & 			0x08)!=0));
-				write_out(OUT_INH_G_SWITCH_CPU, ((rx_buf[3] & 	0x10)!=0));
-				write_out(OUT_BIT_L_CPU, ((rx_buf[3] & 			0x20)!=0));
-				write_out(OUT_EBT_SK_CPU, ((rx_buf[3] & 			0x40)!=0));
-				write_out(OUT_SKR_PWR_CTR_CPU, ((rx_buf[3] & 	0x80)!=0));
-				
-				write_out(OUT_CMD_CONSENSOFUOCO_CPU, ((rx_buf[4] & 0x01)!=0));
-				write_out(OUT_CMD_FMP_INT_CPU, ((rx_buf[4] & 	0x02)!=0));
-				write_out(OUT_SENS_D00_CPU, ((rx_buf[4] & 		0x04)!=0));
-				write_out(OUT_SENS_D01_CPU, ((rx_buf[4] & 		0x08)!=0));
-				write_out(OUT_ID_00_CPU, ((rx_buf[4] & 			0x10)!=0));
-				write_out(OUT_ID_01_CPU, ((rx_buf[4] & 			0x20)!=0));
-				write_out(OUT_TFUEL_RANGE_SLC, ((rx_buf[4] & 	0x40)!=0));
-				write_out(OUT_MAINT_SK_CPU, ((rx_buf[4] & 		0x80)!=0));
-				
-				write_out(OUT_SEL_ANT_CPU, ((rx_buf[5] & 		0x01)!=0));
-				write_out(OUT_RESET_L_CPU, ((rx_buf[5] & 		0x02)!=0));
-				write_out(OUT_CMD_SPIRA_CPU, ((rx_buf[5] & 		0x04)!=0));
-				write_out(OUT_IMX6_SPARE_LED, ((rx_buf[5] & 		0x08)!=0));
-				write_out(OUT_SAFE_SPOLETTA_CPU, ((rx_buf[5] & 	0x10)!=0));
-				write_out(OUT_ENABLE_DL_CPU, ((rx_buf[5] & 		0x20)!=0));
-				write_out(OUT_ESA_CPU, ((rx_buf[5] & 			0x40)!=0));
-				write_out(OUT_ESF_CPU, ((rx_buf[5] & 			0x80)!=0));
-				
-				write_out(OUT_OK_CPU, ((rx_buf[6] & 				0x01)!=0));
-				write_out(OUT_GO_SW_CPU, ((rx_buf[6] & 				0x02)!=0));
-				write_out(OUT_UART3_CTS_B_CPU, ((rx_buf[6] & 		0x04)!=0));
-				write_out(OUT_IT_UC, ((rx_buf[6] & 					0x08)!=0));
-				write_out(OUT_OTG_PWR_EN, ((rx_buf[6] & 			0x10)!=0));
-				write_out(OUT_RESET_ADC_CPU, ((rx_buf[6] & 0x20)!=0));
-				write_out(OUT_GPIO6_IO06_UNUSED, ((rx_buf[6] &  	0x40)!=0));
-				write_out(OUT_GPIO2_IO28_UNUSED, ((rx_buf[6] &  	0x80)!=0));
+				write_out(OUT_RESET_ADC_CPU, ((rx_buf[2] & 	0x01)!=0));
+				write_out(OUT_EASAU_CPU, ((rx_buf[2] & 		0x02)!=0));
+				write_out(OUT_EEO_CPU, ((rx_buf[2] & 		0x04)!=0));
+				write_out(OUT_ESS_CPU, ((rx_buf[2] & 		0x08)!=0));
+				write_out(OUT_EPA_CPU, ((rx_buf[2] & 		0x10)!=0));
+				write_out(OUT_EDB_CPU, ((rx_buf[2] & 		0x20)!=0));
+				write_out(OUT_EFB_CPU, ((rx_buf[2] & 		0x40)!=0));
+				write_out(OUT_EAB_CPU, ((rx_buf[2] & 		0x80)!=0));
+
+				write_out(OUT_SK_PWR_CTR_CPU, ((rx_buf[3] & 	0x01)!=0));
+				write_out(OUT_INH_SORVOLO_CPU, ((rx_buf[3] & 	0x02)!=0));
+				write_out(OUT_EBT_CPU, ((rx_buf[3] & 			0x04)!=0));
+				write_out(OUT_UART3_RTS_B_CPU, ((rx_buf[3] & 	0x08)!=0));
+				write_out(OUT_SPARE_1_OUT_CPU, ((rx_buf[3] & 	0x10)!=0));
+				write_out(OUT_ARM_EVENTO, ((rx_buf[3] & 		0x20)!=0));
+				write_out(OUT_ARM_TRACE_CLK, ((rx_buf[3] & 		0x40)!=0));
+				write_out(OUT_ARM_TRACE00, ((rx_buf[3] & 		0x80)!=0));
+
+				write_out(OUT_ARM_TRACE01, ((rx_buf[4] & 	0x01)!=0));
+				write_out(OUT_ARM_TRACE02, ((rx_buf[4] & 	0x02)!=0));
+				write_out(OUT_ARM_TRACE03, ((rx_buf[4] & 	0x04)!=0));
+				write_out(OUT_ARM_TRACE04, ((rx_buf[4] & 	0x08)!=0));
+				write_out(OUT_ARM_TRACE05, ((rx_buf[4] & 	0x10)!=0));
+				write_out(OUT_ARM_TRACE06, ((rx_buf[4] & 	0x20)!=0));
+				write_out(OUT_ARM_TRACE07, ((rx_buf[4] & 	0x40)!=0));
+				write_out(OUT_SPARE_3_OUT_CPU, ((rx_buf[4] & 0x80)!=0));
+
+				write_out(OUT_SPARE_2_OUT_CPU, ((rx_buf[5] & 0x01)!=0));
+				write_out(OUT_CMD_FMP_INT_CPU, ((rx_buf[5] & 0x02)!=0));
+				write_out(OUT_SENS_D00_CPU, ((rx_buf[5] & 	0x04)!=0));
+				write_out(OUT_SENS_D01_CPU, ((rx_buf[5] & 	0x08)!=0));
+				write_out(OUT_OK_CPU, ((rx_buf[5] & 		0x10)!=0));
+				write_out(OUT_GO_SW_CPU, ((rx_buf[5] & 		0x20)!=0));
+				write_out(OUT_SEL_ANT_CPU, ((rx_buf[5] & 	0x40)!=0));
+				write_out(OUT_RESET_L_CPU, ((rx_buf[5] & 	0x80)!=0));
+
+				write_out(OUT_EBT_SK_CPU, ((rx_buf[6] & 	0x01)!=0));
+				write_out(OUT_CMD_SPIRA_CPU, ((rx_buf[6] & 	0x02)!=0));
+				write_out(OUT_GPIO4_06, ((rx_buf[6] & 		0x04)!=0));
+				write_out(OUT_ECSPI1_UC_SS0, ((rx_buf[6] & 	0x08)!=0));
+				write_out(OUT_USB_OTGPWR_EN, ((rx_buf[6] & 	0x10)!=0));
+				write_out(OUT_GPIO7_12, ((rx_buf[6] & 		0x20)!=0));
+				write_out(OUT_IMX6_SPARE_LED, ((rx_buf[6] & 0x40)!=0));
+				write_out(OUT_BIT_L_CPU, ((rx_buf[6] & 		0x80)!=0));
 				
 				tx_buf[0] = 0x88;
 				tx_buf[1] = 0x00;
 				
 				tmp = 0;
-				tmp += read_in(OUT_SPARE_1_OUT_CPU)			<< 0;
-				tmp += read_in(OUT_SPARE_2_OUT_CPU)			<< 1;
-				tmp += read_in(OUT_SPARE_3_OUT_CPU)			<< 2;
-				tmp += read_in(OUT_EASAU_CPU)				<< 3;
-				tmp += read_in(OUT_EEO_CPU)					<< 4;
-				tmp += read_in(OUT_ESS_CPU)					<< 5;
-				tmp += read_in(OUT_EPA_CPU)					<< 6;
-				tmp += read_in(OUT_EDB_CPU)					<< 7;
+				tmp += read_in(OUT_RESET_ADC_CPU)	<< 0;
+				tmp += read_in(OUT_EASAU_CPU)		<< 1;
+				tmp += read_in(OUT_EEO_CPU)			<< 2;
+				tmp += read_in(OUT_ESS_CPU)			<< 3;
+				tmp += read_in(OUT_EPA_CPU)			<< 4;
+				tmp += read_in(OUT_EDB_CPU)			<< 5;
+				tmp += read_in(OUT_EFB_CPU)			<< 6;
+				tmp += read_in(OUT_EAB_CPU)			<< 7;
 				tx_buf[2] = tmp;
-				
+
 				tmp = 0;
-				tmp += read_in(OUT_EFB_CPU)					<< 0;
-				tmp += read_in(OUT_EAB_CPU)					<< 1;
-				tmp += read_in(OUT_INH_SORVOLO_CPU)			<< 2;
-				tmp += read_in(OUT_EBT_CPU)					<< 3;
-				tmp += read_in(OUT_INH_G_SWITCH_CPU)		<< 4;
-				tmp += read_in(OUT_BIT_L_CPU)				<< 5;
-				tmp += read_in(OUT_EBT_SK_CPU)				<< 6;
-				tmp += read_in(OUT_SKR_PWR_CTR_CPU)			<< 7;
+				tmp += read_in(OUT_SK_PWR_CTR_CPU)	<< 0;
+				tmp += read_in(OUT_INH_SORVOLO_CPU)	<< 1;
+				tmp += read_in(OUT_EBT_CPU)			<< 2;
+				tmp += read_in(OUT_UART3_RTS_B_CPU)	<< 3;
+				tmp += read_in(OUT_SPARE_1_OUT_CPU)	<< 4;
+				tmp += read_in(OUT_ARM_EVENTO)		<< 5;
+				tmp += read_in(OUT_ARM_TRACE_CLK)	<< 6;
+				tmp += read_in(OUT_ARM_TRACE00)		<< 7;
 				tx_buf[3] = tmp;
-				
+
 				tmp = 0;
-				tmp += read_in(OUT_CMD_CONSENSOFUOCO_CPU)	<< 0;
-				tmp += read_in(OUT_CMD_FMP_INT_CPU)			<< 1;
-				tmp += read_in(OUT_SENS_D00_CPU)			<< 2;
-				tmp += read_in(OUT_SENS_D01_CPU)			<< 3;
-				tmp += read_in(OUT_ID_00_CPU)				<< 4;
-				tmp += read_in(OUT_ID_01_CPU)				<< 5;
-				tmp += read_in(OUT_TFUEL_RANGE_SLC)			<< 6;
-				tmp += read_in(OUT_MAINT_SK_CPU)			<< 7;
+				tmp += read_in(OUT_ARM_TRACE01)		<< 0;
+				tmp += read_in(OUT_ARM_TRACE02)		<< 1;
+				tmp += read_in(OUT_ARM_TRACE03)		<< 2;
+				tmp += read_in(OUT_ARM_TRACE04)		<< 3;
+				tmp += read_in(OUT_ARM_TRACE05)		<< 4;
+				tmp += read_in(OUT_ARM_TRACE06)		<< 5;
+				tmp += read_in(OUT_ARM_TRACE07)		<< 6;
+				tmp += read_in(OUT_SPARE_3_OUT_CPU)	<< 7;
 				tx_buf[4] = tmp;
-				
+
 				tmp = 0;
-				tmp += read_in(OUT_SEL_ANT_CPU)				<< 0;
-				tmp += read_in(OUT_RESET_L_CPU)				<< 1;
-				tmp += read_in(OUT_CMD_SPIRA_CPU)			<< 2;
-				tmp += read_in(OUT_IMX6_SPARE_LED)			<< 3;
-				tmp += read_in(OUT_SAFE_SPOLETTA_CPU)		<< 4;
-				tmp += read_in(OUT_ENABLE_DL_CPU)			<< 5;
-				tmp += read_in(OUT_ESA_CPU)					<< 6;
-				tmp += read_in(OUT_ESF_CPU)					<< 7;
+				tmp += read_in(OUT_SPARE_2_OUT_CPU)	<< 0;
+				tmp += read_in(OUT_CMD_FMP_INT_CPU)	<< 1;
+				tmp += read_in(OUT_SENS_D00_CPU)	<< 2;
+				tmp += read_in(OUT_SENS_D01_CPU)	<< 3;
+				tmp += read_in(OUT_OK_CPU)			<< 4;
+				tmp += read_in(OUT_GO_SW_CPU)		<< 5;
+				tmp += read_in(OUT_SEL_ANT_CPU)		<< 6;
+				tmp += read_in(OUT_RESET_L_CPU)		<< 7;
 				tx_buf[5] = tmp;
-				
+
 				tmp = 0;
-				tmp += read_in(OUT_OK_CPU)					<< 0;
-				tmp += read_in(OUT_GO_SW_CPU)				<< 1;
-				tmp += read_in(OUT_UART3_CTS_B_CPU)			<< 2;
-				tmp += read_in(OUT_IT_UC)					<< 3;
-				tmp += read_in(OUT_OTG_PWR_EN)				<< 4;
-				tmp += read_in(OUT_RESET_ADC_CPU)			<< 5;
-				tmp += read_in(OUT_GPIO6_IO06_UNUSED)		<< 6;
-				tmp += read_in(OUT_GPIO2_IO28_UNUSED)		<< 7;
+				tmp += read_in(OUT_EBT_SK_CPU)		<< 0;
+				tmp += read_in(OUT_CMD_SPIRA_CPU)	<< 1;
+				tmp += read_in(OUT_GPIO4_06)		<< 2;
+				tmp += read_in(OUT_ECSPI1_UC_SS0)	<< 3;
+				tmp += read_in(OUT_USB_OTGPWR_EN)	<< 4;
+				tmp += read_in(OUT_GPIO7_12)		<< 5;
+				tmp += read_in(OUT_IMX6_SPARE_LED)	<< 6;
+				tmp += read_in(OUT_BIT_L_CPU)		<< 7;
 				tx_buf[6] = tmp;
 				
 			
 			}
 			else if(rx_buf[0]==0x09){
 				
-				write_out(OUT_ARM_TRACE_00, ((rx_buf[2] & 	0x01)!=0));
-				write_out(OUT_ARM_TRACE_01, ((rx_buf[2] & 	0x02)!=0));
-				write_out(OUT_ARM_TRACE_02, ((rx_buf[2] & 	0x04)!=0));
-				write_out(OUT_ARM_TRACE_03, ((rx_buf[2] & 	0x08)!=0));
-				write_out(OUT_ARM_TRACE_04, ((rx_buf[2] & 	0x10)!=0));
-				write_out(OUT_ARM_TRACE_05, ((rx_buf[2] & 	0x20)!=0));
-				write_out(OUT_ARM_TRACE_06, ((rx_buf[2] & 	0x40)!=0));
-				write_out(OUT_ARM_TRACE_07, ((rx_buf[2] & 	0x80)!=0));
-				
-				write_out(OUT_ARM_EVENTO, ((rx_buf[3] & 	0x01)!=0));
-				write_out(OUT_ARM_TRACE_CLK, ((rx_buf[3] & 	0x02)!=0));
-				write_out(OUT_ECSPI3_SS1, ((rx_buf[3] & 	0x04)!=0));
-				write_out(OUT_ECSPI3_SS2, ((rx_buf[3] & 	0x08)!=0));
-				write_out(OUT_ECSPI3_SS3, ((rx_buf[3] & 	0x10)!=0));
-				write_out(OUT_ECSPI5_SS1, ((rx_buf[3] & 	0x20)!=0));
-				write_out(OUT_ECSPI5_SS2, ((rx_buf[3] & 	0x40)!=0));
-				write_out(OUT_ECSPI5_SS3, ((rx_buf[3] & 	0x80)!=0));
-							
-				
-				
+				write_out(OUT_INH_G_SWITCH_CPU, ((rx_buf[2] & 		0x01)!=0));
+				write_out(OUT_MAINT_SK_CPU, ((rx_buf[2] & 			0x02)!=0));
+				write_out(OUT_ENCODER_FORMAT_0_CPU, ((rx_buf[2] & 	0x04)!=0));
+				write_out(OUT_ENCODER_FORMAT_1_CPU, ((rx_buf[2] & 	0x08)!=0));
+				write_out(OUT_SAFE_SPOLETTA_CPU, ((rx_buf[2] & 		0x10)!=0));
+				write_out(OUT_ENABLE_DL_CPU, ((rx_buf[2] & 			0x20)!=0));
+				write_out(OUT_ESA_CPU, ((rx_buf[2] & 				0x40)!=0));
+				write_out(OUT_ESF_CPU, ((rx_buf[2] & 				0x80)!=0));
 				
 				tx_buf[0] = 0x99;
 				tx_buf[1] = 0x00;
 				
 				tmp = 0;
-				tmp += read_in(OUT_ARM_TRACE_00)	<< 0;
-				tmp += read_in(OUT_ARM_TRACE_01)	<< 1;
-				tmp += read_in(OUT_ARM_TRACE_02)	<< 2;
-				tmp += read_in(OUT_ARM_TRACE_03)	<< 3;
-				tmp += read_in(OUT_ARM_TRACE_04)	<< 4;
-				tmp += read_in(OUT_ARM_TRACE_05)	<< 5;
-				tmp += read_in(OUT_ARM_TRACE_06)	<< 6;
-				tmp += read_in(OUT_ARM_TRACE_07)	<< 7;
+				tmp += read_in(OUT_INH_G_SWITCH_CPU)		<< 0;
+				tmp += read_in(OUT_MAINT_SK_CPU)			<< 1;
+				tmp += read_in(OUT_ENCODER_FORMAT_0_CPU)	<< 2;
+				tmp += read_in(OUT_ENCODER_FORMAT_1_CPU)	<< 3;
+				tmp += read_in(OUT_SAFE_SPOLETTA_CPU)		<< 4;
+				tmp += read_in(OUT_ENABLE_DL_CPU)			<< 5;
+				tmp += read_in(OUT_ESA_CPU)					<< 6;
+				tmp += read_in(OUT_ESF_CPU)					<< 7;
 				tx_buf[2] = tmp;
 				
-				tmp = 0;
-				tmp += read_in(OUT_ARM_EVENTO)		<< 0;
-				tmp += read_in(OUT_ARM_TRACE_CLK)	<< 1;
-				tmp += read_in(OUT_ECSPI3_SS1)		<< 2;
-				tmp += read_in(OUT_ECSPI3_SS2)		<< 3;
-				tmp += read_in(OUT_ECSPI3_SS3)		<< 4;
-				tmp += read_in(OUT_ECSPI5_SS1)		<< 5;
-				tmp += read_in(OUT_ECSPI5_SS2)		<< 6;
-				tmp += read_in(OUT_ECSPI5_SS3)		<< 7;
-				tx_buf[3] = tmp;
-				
+				tx_buf[3] = 0x00;
 				tx_buf[4] = 0x00;
 				tx_buf[5] = 0x00;
 				tx_buf[6] = 0x00;
