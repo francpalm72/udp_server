@@ -849,47 +849,47 @@ int main(void)
 				tx_buf[2] = tmp;
 
 				tmp = 0;
-				tmp += read_in(OUT_SK_PWR_CTR_CPU	<< 0;
-				tmp += read_in(OUT_INH_SORVOLO_CPU	<< 1;
-				tmp += read_in(OUT_EBT_CPU	        << 2;
-				tmp += read_in(OUT_IO_SPARE1_CPU	<< 3;
-				tmp += read_in(OUT_UART3_RTS_B_CPU	<< 4;
-				tmp += read_in(OUT_SPARE_1_OUT_CPU	<< 5;
-				tmp += read_in(OUT_ARM_EVENTO	    << 6;
-				tmp += read_in(OUT_ARM_TRACE_CLK	<< 7;
+				tmp += read_in(OUT_SK_PWR_CTR_CPU)	<< 0;
+				tmp += read_in(OUT_INH_SORVOLO_CPU)	<< 1;
+				tmp += read_in(OUT_EBT_CPU)	        << 2;
+				tmp += read_in(OUT_IO_SPARE1_CPU)	<< 3;
+				tmp += read_in(OUT_UART3_RTS_B_CPU)	<< 4;
+				tmp += read_in(OUT_SPARE_1_OUT_CPU)	<< 5;
+				tmp += read_in(OUT_ARM_EVENTO)	    << 6;
+				tmp += read_in(OUT_ARM_TRACE_CLK)	<< 7;
 				tx_buf[3] = tmp;
 
 				tmp = 0;
-				tmp += read_in(OUT_ARM_TRACE00	<< 0;
-				tmp += read_in(OUT_ARM_TRACE01	<< 1;
-				tmp += read_in(OUT_ARM_TRACE02	<< 2;
-				tmp += read_in(OUT_ARM_TRACE03	<< 3;
-				tmp += read_in(OUT_ARM_TRACE04	<< 4;
-				tmp += read_in(OUT_ARM_TRACE05	<< 5;
-				tmp += read_in(OUT_ARM_TRACE06	<< 6;
-				tmp += read_in(OUT_ARM_TRACE07	<< 7;
+				tmp += read_in(OUT_ARM_TRACE00)	<< 0;
+				tmp += read_in(OUT_ARM_TRACE01)	<< 1;
+				tmp += read_in(OUT_ARM_TRACE02)	<< 2;
+				tmp += read_in(OUT_ARM_TRACE03)	<< 3;
+				tmp += read_in(OUT_ARM_TRACE04)	<< 4;
+				tmp += read_in(OUT_ARM_TRACE05)	<< 5;
+				tmp += read_in(OUT_ARM_TRACE06)	<< 6;
+				tmp += read_in(OUT_ARM_TRACE07)	<< 7;
 				tx_buf[4] = tmp;
 
 				tmp = 0;
-				tmp += read_in(OUT_SPARE_3_OUT_CPU	<< 0;
-				tmp += read_in(OUT_SPARE_2_OUT_CPU	<< 1;
-				tmp += read_in(OUT_SPARE_2_IN_CPU	<< 2;
-				tmp += read_in(OUT_CMD_FMP_INT_CPU	<< 3;
-				tmp += read_in(OUT_SENS_D00_CPU	    << 4;
-				tmp += read_in(OUT_SENS_D01_CPU	    << 5;
-				tmp += read_in(OUT_OK_CPU	        << 6;
-				tmp += read_in(OUT_GO_SW_CPU	    << 7;
+				tmp += read_in(OUT_SPARE_3_OUT_CPU)	<< 0;
+				tmp += read_in(OUT_SPARE_2_OUT_CPU)	<< 1;
+				tmp += read_in(OUT_SPARE_2_IN_CPU)	<< 2;
+				tmp += read_in(OUT_CMD_FMP_INT_CPU)	<< 3;
+				tmp += read_in(OUT_SENS_D00_CPU)	<< 4;
+				tmp += read_in(OUT_SENS_D01_CPU)	<< 5;
+				tmp += read_in(OUT_OK_CPU)			<< 6;
+				tmp += read_in(OUT_GO_SW_CPU)		<< 7;
 				tx_buf[5] = tmp;
 
 				tmp = 0;
-				tmp += read_in(OUT_SEL_ANT_CPU	 << 0;
-				tmp += read_in(OUT_RESET_L_CPU	 << 1;
-				tmp += read_in(OUT_EBT_SK_CPU	 << 2;
-				tmp += read_in(OUT_CMD_SPIRA_CPU << 3;
-				tmp += read_in(OUT_GPIO4_06	     << 4;
-				tmp += read_in(OUT_IO_SPARE2_CPU << 5;
-				tmp += read_in(OUT_USB_OTGPWR_EN << 6;
-				tmp += read_in(OUT_IT_UC	     << 7;
+				tmp += read_in(OUT_SEL_ANT_CPU)		<< 0;
+				tmp += read_in(OUT_RESET_L_CPU)		<< 1;
+				tmp += read_in(OUT_EBT_SK_CPU)		<< 2;
+				tmp += read_in(OUT_CMD_SPIRA_CPU)	<< 3;
+				tmp += read_in(OUT_GPIO4_06)		<< 4;
+				tmp += read_in(OUT_IO_SPARE2_CPU)	<< 5;
+				tmp += read_in(OUT_USB_OTGPWR_EN)	<< 6;
+				tmp += read_in(OUT_IT_UC)			<< 7;
 				tx_buf[6] = tmp;
 				
 			
@@ -915,22 +915,22 @@ int main(void)
 				tx_buf[1] = 0x00;
 				
 				tmp = 0;
-				tmp += read_in(OUT_GPIO7_12	             << 0;
-				tmp += read_in(OUT_IMX6_SPARE_LED	     << 1;
-				tmp += read_in(OUT_BIT_L_CPU	         << 2;
-				tmp += read_in(OUT_INH_G_SWITCH_CPU	     << 3;
-				tmp += read_in(OUT_MAINT_SK_CPU	         << 4;
-				tmp += read_in(OUT_ENCODER_FORMAT_0_CPU	 << 5;
-				tmp += read_in(OUT_ENCODER_FORMAT_1_CPU	 << 6;
-				tmp += read_in(OUT_SAFE_SPOLETTA_CPU	 << 7;
+				tmp += read_in(OUT_GPIO7_12)				<< 0;
+				tmp += read_in(OUT_IMX6_SPARE_LED)			<< 1;
+				tmp += read_in(OUT_BIT_L_CPU)				<< 2;
+				tmp += read_in(OUT_INH_G_SWITCH_CPU)	    << 3;
+				tmp += read_in(OUT_MAINT_SK_CPU)			<< 4;
+				tmp += read_in(OUT_ENCODER_FORMAT_0_CPU)	<< 5;
+				tmp += read_in(OUT_ENCODER_FORMAT_1_CPU)	<< 6;
+				tmp += read_in(OUT_SAFE_SPOLETTA_CPU)		<< 7;
 				tx_buf[2] = tmp;
 
 				tmp = 0;
-				tmp += read_in(OUT_ENABLE_DL_CPU	       	<< 0;
-				tmp += read_in(OUT_ESA_CPU	       			<< 1;
-				tmp += read_in(OUT_ESF_CPU	       			<< 2;
-				tmp += read_in(OUT_CMD_CONSENSOFUOCO_CPU    << 3;	//output trasformato in pwm (solo per la versione collaudo cestello)
-				tmp += read_in(OUT_ECSPI3_SS0	       		<< 4;
+				tmp += read_in(OUT_ENABLE_DL_CPU)			<< 0;
+				tmp += read_in(OUT_ESA_CPU)					<< 1;
+				tmp += read_in(OUT_ESF_CPU)					<< 2;
+				tmp += read_in(OUT_CMD_CONSENSOFUOCO_CPU)	<< 3;	//output trasformato in pwm (solo per la versione collaudo cestello)
+				tmp += read_in(OUT_ECSPI3_SS0)				<< 4;
 				tx_buf[3] = tmp;
 				
 				tx_buf[4] = 0x00;
