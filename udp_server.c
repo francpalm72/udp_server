@@ -25,10 +25,17 @@
 #include <linux/spi/spidev.h>
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
+//per EIM
+#include <sys/mman.h>
+
 #include "udp_server.h"
 
 #define BUFLEN 512  //Max length of buffer
 #define PORT 8888   //The port on which to listen for incoming data
+
+//define per accesso a EIM
+#define MAP_SIZE 4096UL
+#define MAP_MASK (MAP_SIZE - 1)
 
 // I2C Linux device handle
 int g_i2cFile;
@@ -502,11 +509,17 @@ int spi_send_receive(unsigned char reqchn, unsigned char reqspeed, unsigned char
 int main(void)
 {
     struct sockaddr_in si_me, si_other;
-     
+    
     int s, i, slen = sizeof(si_other) , recv_len;
     unsigned char rx_buf[BUFLEN];
     unsigned char tx_buf[BUFLEN];
     int tmp;
+    
+    int eim_fd;
+    off_t eim_target_address;
+    size_t eim_data_size;
+    void *eim_map_base, *eim_virt_addr; 
+    unsigned char eim_buffer[8];
     
     //create a UDP socket
     if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
@@ -556,23 +569,7 @@ int main(void)
 				tx_buf[6] = 0xAA;
 			}
 			else if(rx_buf[0]==0x01){
-				tmp_tx_buf[0] = rx_buf[2];
-				tmp_tx_buf[1] = rx_buf[3];
-				tmp_tx_buf[2] = rx_buf[4];
-				tmp_tx_buf[3] = rx_buf[5];
-				tmp_tx_buf[4] = rx_buf[6];
 				
-				//spidev0.0
-				i = spi_send_receive(0x00, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F));
-				//printf("recv_len=%d\n",i);
-				
-				tx_buf[0] = 0x11;
-				tx_buf[1] = rx_buf[1];
-				tx_buf[2] = tmp_rx_buf[0];
-				tx_buf[3] = tmp_rx_buf[1];
-				tx_buf[4] = tmp_rx_buf[2];
-				tx_buf[5] = tmp_rx_buf[3];
-				tx_buf[6] = tmp_rx_buf[4];
 			}
 			else if(rx_buf[0]==0x02){
 				tmp_tx_buf[0] = rx_buf[2];
@@ -594,23 +591,7 @@ int main(void)
 				tx_buf[6] = tmp_rx_buf[4];
 			}
 			else if(rx_buf[0]==0x03){
-				tmp_tx_buf[0] = rx_buf[2];
-				tmp_tx_buf[1] = rx_buf[3];
-				tmp_tx_buf[2] = rx_buf[4];
-				tmp_tx_buf[3] = rx_buf[5];
-				tmp_tx_buf[4] = rx_buf[6];
 				
-				//spidev3.0
-				i = spi_send_receive(0x03, (rx_buf[1] & 0xF0),(rx_buf[1] & 0x0F));
-				//printf("recv_len=%d\n",i);
-				
-				tx_buf[0] = 0x33;
-				tx_buf[1] = rx_buf[1];
-				tx_buf[2] = tmp_rx_buf[0];
-				tx_buf[3] = tmp_rx_buf[1];
-				tx_buf[4] = tmp_rx_buf[2];
-				tx_buf[5] = tmp_rx_buf[3];
-				tx_buf[6] = tmp_rx_buf[4];
 			}
 			else if(rx_buf[0]==0x04){
 				tmp_tx_buf[0] = rx_buf[2];
@@ -940,7 +921,7 @@ int main(void)
 			else if(rx_buf[0]==0x0A){
 				tx_buf[0] = 0xAA;
 				tx_buf[1] = 0x00;
-				tx_buf[2] = 0x01;
+				tx_buf[2] = 0x02;
 				tx_buf[3] = 0x00;
 				tx_buf[4] = 0x00;
 				tx_buf[5] = 0x00;
@@ -956,6 +937,77 @@ int main(void)
 				tx_buf[4] = 0x00;
 				tx_buf[5] = (unsigned char)((tmp & 0xFF00)>>8);
 				tx_buf[6] = (unsigned char)(tmp & 0xFF);
+			}
+			//COMANDO PER LETTURA DA BUS EIM
+			else if(rx_buf[0]==0x0C){
+				
+				eim_target_address = ((off_t)rx_buf[1] << 8 ) + (off_t)rx_buf[2];
+				eim_data_size = (size_t)rx_buf[3];
+				
+				if(eim_data_size <= 0){ eim_data_size = 1; }
+				if(eim_data_size > 4){ eim_data_size = 4; }
+				
+				if((eim_fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1){
+					continue;
+				}
+				/* Map one page */
+				eim_map_base = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, eim_fd, (0x0C000000 + eim_target_address) & ~MAP_MASK);
+				if(eim_map_base == (void *) -1){
+					continue;
+				}
+				
+				eim_virt_addr = eim_map_base + ((0x0C000000 + eim_target_address) & MAP_MASK);
+				
+				for(i=0;i<8;i++){
+					eim_buffer[i] = 0xFF;
+				}
+				
+				memcpy(eim_buffer, (unsigned char *)eim_virt_addr, eim_data_size);
+				
+				tx_buf[0] = 0xCC;
+				tx_buf[1] = rx_buf[1];
+				tx_buf[2] = rx_buf[2];
+				tx_buf[3] = eim_buffer[0];
+				tx_buf[4] = eim_buffer[1];
+				tx_buf[5] = eim_buffer[2];
+				tx_buf[6] = eim_buffer[3];
+				
+				close(eim_fd);
+			}
+			//COMANDO PER SCRITTURA SU BUS EIM
+			else if(rx_buf[0]==0x0D){
+				
+				eim_target_address = ((off_t)rx_buf[1] << 8 ) + (off_t)rx_buf[2];
+				eim_data_size = (size_t)rx_buf[3];
+				
+				if(eim_data_size <= 0){ eim_data_size = 1; }
+				if(eim_data_size > 2){ eim_data_size = 2; }
+				
+				if((eim_fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1){
+					continue;
+				}
+				/* Map one page */
+				eim_map_base = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, eim_fd, (0x0C000000 + eim_target_address) & ~MAP_MASK);
+				if(eim_map_base == (void *) -1){
+					continue;
+				}
+				
+				eim_virt_addr = eim_map_base + ((0x0C000000 + eim_target_address) & MAP_MASK);
+				
+				eim_buffer[0] = rx_buf[4];
+				eim_buffer[1] = rx_buf[5];
+				
+				memcpy((unsigned char *) eim_virt_addr, eim_buffer, eim_data_size);
+				
+				tx_buf[0] = 0xDD;
+				tx_buf[1] = rx_buf[1];
+				tx_buf[2] = rx_buf[2];
+				tx_buf[3] = rx_buf[3];
+				tx_buf[4] = rx_buf[4];
+				tx_buf[5] = rx_buf[5];
+				tx_buf[6] = 0x00;
+				
+				close(eim_fd);
 			}
 			else{
 				continue;
