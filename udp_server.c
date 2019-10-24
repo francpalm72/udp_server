@@ -762,6 +762,7 @@ int main(void)
 				tmp += read_in(IN_TERMINATE_CMD_2_CPU) 	<< 1;
 				tmp += read_in(IN_STATO_D1_CPU) 		<< 2;
 				tmp += read_in(IN_T0_CONN_CPU) 			<< 3;
+				tmp += read_in(IN_SPARE_2_IN_CPU) 		<< 4;
 				tx_buf[4] = tmp;
 				
 				tx_buf[5] = 0x00;				
@@ -799,7 +800,7 @@ int main(void)
 
 				write_out(OUT_SPARE_3_OUT_CPU, ((rx_buf[5] & 	0x01)!=0));
 				write_out(OUT_SPARE_2_OUT_CPU, ((rx_buf[5] & 	0x02)!=0));
-				write_out(OUT_SPARE_2_IN_CPU, ((rx_buf[5] & 	0x04)!=0));
+				//write_out(OUT_SPARE_2_IN_CPU, ((rx_buf[5] & 	0x04)!=0));
 				write_out(OUT_CMD_FMP_INT_CPU, ((rx_buf[5] & 	0x08)!=0));
 				write_out(OUT_SENS_D00_CPU, ((rx_buf[5] & 		0x10)!=0));
 				write_out(OUT_SENS_D01_CPU, ((rx_buf[5] & 		0x20)!=0));
@@ -854,7 +855,7 @@ int main(void)
 				tmp = 0;
 				tmp += read_in(OUT_SPARE_3_OUT_CPU)	<< 0;
 				tmp += read_in(OUT_SPARE_2_OUT_CPU)	<< 1;
-				tmp += read_in(OUT_SPARE_2_IN_CPU)	<< 2;
+				//tmp += read_in(OUT_SPARE_2_IN_CPU)	<< 2;
 				tmp += read_in(OUT_CMD_FMP_INT_CPU)	<< 3;
 				tmp += read_in(OUT_SENS_D00_CPU)	<< 4;
 				tmp += read_in(OUT_SENS_D01_CPU)	<< 5;

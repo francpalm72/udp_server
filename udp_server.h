@@ -35,6 +35,7 @@ int write_out(int idport, int val);
 #define IN_OK_SPOLETTA_CPU 114
 #define IN_OK_DL_CPU 115
 #define IN_OK_PS_TH_CPU 116
+#define IN_SPARE_2_IN_CPU 123
 #define IN_STATUS_ANT_CPU 124
 #define IN_OK_PS_SWRF_CPU 127
 #define IN_LOOPBACK_SIGNAL_CPU 140
@@ -118,7 +119,7 @@ int write_out(int idport, int val);
 
 #define OUT_SPARE_3_OUT_CPU 121
 #define OUT_SPARE_2_OUT_CPU 122
-#define OUT_SPARE_2_IN_CPU 123		//cambiato da IN a OUT
+
 #define OUT_CMD_FMP_INT_CPU 126
 #define OUT_SENS_D00_CPU 133
 #define OUT_SENS_D01_CPU 134
